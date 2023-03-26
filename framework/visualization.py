@@ -57,10 +57,9 @@ import scipy as sp
 import scipy.sparse
 from matplotlib.patches import Circle
 from framework.ImageFeatures import ImageFeatures,getvoxelsize
-from framework.Functions import FeaturesFromCentroid, cv2toski,pylsdtoski,polar_to_cartesian, truncate_colormap, plot_hist, plot_pie, remove_not1D, quantitative_analysis,hist_bin,hist_lim,create_separate_DFs,branch,graphAnalysis
+from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,create_separate_DFs,branch,graphAnalysis
 from framework.Importing import label_image,init_import
-from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
-from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
+#from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
 from framework.Processing import process3Dnuclei,analyze_cell
 
 #from fractal_dimension import fractal_dimension
@@ -339,10 +338,10 @@ def graph_plotter(ResultsRow,cmap,feat,normalize_bounds,colorbar_label,nodes,mai
     
     
 
-cmap     = pltc.rainbow
-cm       = truncate_colormap(cmap, 0, 1, 300)
+#cmap     = pltc.rainbow
+#cm       = truncate_colormap(cmap, 0, 1, 300)
 
-data = graph_plotter(ResultsRow=ResultsDF.loc[0],feat='branch-type',cmap=cm,normalize_bounds='default',colorbar_label='Pixels',nodes=False,main_branch=True, save=True)
+#data = graph_plotter(ResultsRow=ResultsDF.loc[0],feat='branch-type',cmap=cm,normalize_bounds='default',colorbar_label='Pixels',nodes=False,main_branch=True, save=True)
 #line_plotter(ResultsRow=ResultsDF.loc[2],TextureDF=TextureDF,feat='LSF2D:Distances to Centroid',cmap=cm,normalize_bounds='default',colorbar_label='Degrees',overlay_sk=True,save=False)
 
 
@@ -481,3 +480,119 @@ def graph_plotter(ResultsRow,cmap,feat,normalize_bounds,colorbar_label,nodes,mai
 #data = graph_plotter(ResultsRow=ResultsDF.loc[0],feat='branch-type',cmap=cm,normalize_bounds='default',colorbar_label='Pixels',nodes=False,main_branch=True, save=True)
 #line_plotter(ResultsRow=ResultsDF.loc[2],TextureDF=TextureDF,feat='LSF2D:Distances to Centroid',cmap=cm,normalize_bounds='default',colorbar_label='Degrees',overlay_sk=True,save=False)
 
+
+
+
+
+# Useful functions
+def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
+    new_cmap = colors.LinearSegmentedColormap.from_list(
+        'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
+        cmap(np.linspace(minval, maxval, n)))
+    return new_cmap
+
+def plot_hist(feat,bins):
+    cmap = pltc.Reds
+    global new_cmap
+    new_cmap = truncate_colormap(cmap, 0.3, 1, 300)
+    
+    global data
+    data = ImageLinesDF.tail(1)
+    global histog,bin_edges
+    
+    if feat == 'Distances to Centroid':
+        bins = np.arange(0, 280 + 5, 5)
+    if feat == 'Triangle Areas':
+        bins = np.arange(0, 4600 + 5, 5)
+    if feat == 'Line Lengths':
+        # max(data[feat][data.index[0]])
+        bins = np.arange(0, 220 + 5, 5)
+    #if feat == 'Theta':
+    #    bins = np.arange
+    #if feat == 'Angle Difference':
+    #    bins = np.arange
+    
+    histo = np.histogram(data[feat][data.index[0]],bins=bins)
+    
+    # AX1
+    ax1 = plt.subplot(1,1,1)
+    ax1.set_ylabel('Absolute Frequency')
+    ax1.yaxis.set_major_locator(MaxNLocator(integer=True))
+    
+    global colours
+    #colours = pltc.Reds(plt.Normalize(0, max(histog[0]))(histog[0]),alpha=0.7)
+    #colours = new_cmap(plt.Normalize(0, max(histo[0]))(histo[0]),alpha=0.7)
+
+    #ax1.bar(histog[1][:-1],histog[0],color=colours,zorder=5)
+    histog, bin_edges, patches = ax1.hist(data[feat][data.index[0]], bins=bins,color='k',alpha=0.7)
+    #ax1.color = new_cmap(plt.Normalize(0, max(histog))(histog),alpha=0.7)
+    for c, p in zip(histog, patches):
+        plt.setp(p, 'facecolor', new_cmap(plt.Normalize(0, max(histog))(c), alpha = 0.7))
+    
+    # AX2
+    ax2 = ax1.twinx()  
+    ax2.set_ylabel('Relative Frequency')  
+    _ = ax2.hist(data[feat][data.index[0]], bins=bins, density=True, alpha=0)
+    #ax2.plot(histog[1][:-1],(histog[0]/np.trapz(histog[0],x=histog[1][:-1])),'--',alpha=0,zorder=1)
+    plt.grid(alpha=0.3)
+    
+    if feat == 'Angles':
+        ax1.set_xlabel('Degrees (º)')
+        ax1.set_title('Angle between Centroid and Line Segment',fontsize=12)
+        ax1.set_xticks(bin_edges)
+    if feat == 'Distances to Centroid':
+        ax1.set_xlabel('Pixels')
+        ax1.set_title('Distance between Centroid and Line Segment',fontsize=12)
+        ax1.set_xticks(np.linspace(0,bin_edges[-1],10,endpoint=True,dtype=int))
+        #ax1.set_xticks(np.linspace(0,130,10,endpoint=True,dtype=int))
+        
+    if feat == 'Triangle Areas':
+        ax1.set_xlabel('Pixels')
+        ax1.set_title('Triangle Areas between Centroid and Line Segment',fontsize=12)
+        #ax1.set_xticks(np.linspace(0,bin_edges[-1],10,endpoint=True,dtype=int))
+        ax1.set_xticks(np.linspace(0,bin_edges[-1],10,endpoint=True,dtype=int))
+        
+    if feat == 'Line Lengths':
+        ax1.set_xlabel('Pixels')
+        ax1.set_title('Line Length',fontsize=12)
+        ax1.set_xticks(np.linspace(0,bin_edges[-1],10,endpoint=True,dtype=int))
+        #ax1.set_xticks(np.linspace(0,170,10,endpoint=True,dtype=int))
+        
+    if feat == 'Theta':
+        ax1.set_xlabel('Degrees (º)')
+        ax1.set_title('Line Segment Angle',fontsize=12)
+        ax1.set_xticks(bin_edges)
+        
+    if feat == 'Angle Difference':
+        ax1.set_xlabel('Degrees (º)')
+        ax1.set_title('Angle Difference (º)',fontsize=12)
+        ax1.set_xticks(bin_edges)
+        
+    plt.show()
+    
+def plot_pie(feat,Max):
+    cmap = pltc.Reds
+    global new_cmap
+    new_cmap = truncate_colormap(cmap, 0.3, 1, 300)
+    
+    global data
+    data = ImageLinesDF.tail(1)
+    
+    
+    # Pie chart
+    labels = [feat, '-']
+    if feat == 'Number of Lines':
+        sizes = [data[feat][data.index[0]], Max]
+        
+    colors = [new_cmap(plt.Normalize(0, Max)(data[feat][data.index[0]]), alpha = 0.7),'w']
+
+    fig1, ax1 = plt.subplots()
+    ax1.pie(sizes, colors = colors, labels=[sizes[0],'-'], startangle=90)
+    #draw circle
+    centre_circle = plt.Circle((0,0),0.70,fc='white',ec='black')
+    fig = plt.gcf()
+    fig.gca().add_artist(centre_circle)
+    # Equal aspect ratio ensures that pie is drawn as a circle
+    ax1.axis('equal')  
+    plt.tight_layout()
+    plt.show()

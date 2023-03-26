@@ -265,7 +265,11 @@ def getvoxelsize(folder):
         yres = units_y / num_pixels_y
 
     if ij_metadata is not None:
-        zres = ij_metadata['spacing']
+        try:
+            zres = ij_metadata['spacing']
+        except:
+            print('Image is 2D. Using default voxel height (z = 1)')
+            return xres,yres
     else:
         print('Using default voxel height (z = 1)')
         zres = 1
@@ -282,9 +286,14 @@ class ImageFeatures:
         self.img = img
         self.bin_img = (img!=0)*1
         self.original_folder = original_folder
-        self.spacing         = (getvoxelsize(original_folder)[0],getvoxelsize(original_folder)[1],getvoxelsize(original_folder)[2])
-        self.voxel_size = getvoxelsize(original_folder)[0] * getvoxelsize(original_folder)[1] * getvoxelsize(original_folder)[2]
         self.dim = len(img.shape)
+        if self.dim == 3:
+            self.spacing    = (getvoxelsize(original_folder)[0],getvoxelsize(original_folder)[1],getvoxelsize(original_folder)[2])
+            self.voxel_size = getvoxelsize(original_folder)[0] * getvoxelsize(original_folder)[1] * getvoxelsize(original_folder)[2]
+        if self.dim == 2:
+            siz = getvoxelsize(original_folder)[0],getvoxelsize(original_folder)[1],getvoxelsize(original_folder)[2]
+            self.spacing    = (siz[1],siz[2])
+            self.voxel_size = siz[1] * siz[2]
         
         
         # --- Int
@@ -398,9 +407,14 @@ class ImageFeatures:
         features['Extent']                = props[0].extent
         features['Major Axis Length']     = props[0].major_axis_length #The length of the major axis of the ellipse that has the same normalized second central moments as the region.
         features['Minor Axis Length']     = props[0].minor_axis_length  #The length of the minor axis of the ellipse that has the same normalized second central moments as the region.
-        features['Height']                = getvoxelsize(self.original_folder)[0] * (max(np.where(self.bin_img*1>0)[0])-min(np.where(self.bin_img*1>0)[0]))
-        features['XComp']                 = getvoxelsize(self.original_folder)[1] * (max(np.where(self.bin_img*1>0)[1])-min(np.where(self.bin_img*1>0)[1]))
-        features['YComp']                 = getvoxelsize(self.original_folder)[2] * (max(np.where(self.bin_img*1>0)[2])-min(np.where(self.bin_img*1>0)[2]))
+        if self.dim == 3:
+            features['Height']                = getvoxelsize(self.original_folder)[0] * (max(np.where(self.bin_img*1>0)[0])-min(np.where(self.bin_img*1>0)[0]))
+            features['XComp']                 = getvoxelsize(self.original_folder)[1] * (max(np.where(self.bin_img*1>0)[1])-min(np.where(self.bin_img*1>0)[1]))
+            features['YComp']                 = getvoxelsize(self.original_folder)[2] * (max(np.where(self.bin_img*1>0)[2])-min(np.where(self.bin_img*1>0)[2]))
+        if self.dim == 2:
+            features['XComp']                 = getvoxelsize(self.original_folder)[0] * (max(np.where(self.bin_img*1>0)[0])-min(np.where(self.bin_img*1>0)[0]))
+            features['YComp']                 = getvoxelsize(self.original_folder)[1] * (max(np.where(self.bin_img*1>0)[1])-min(np.where(self.bin_img*1>0)[1]))
+            
         features['Euler Number']          = props[0].euler_number
         
         try:
@@ -567,11 +581,17 @@ class ImageFeatures:
 #             features['Fractal Dim Skeleton'] = fd_nuc
 #         except:
 #             pass
-
-        if 100*(features['Volume convex'] - features['Volume'])/features['Volume'] > 200:
-            print('Volume convex exceeded 200%')
-            features = {}
-            return features
+        if self.dim == 3:
+            if 100*(features['Volume convex'] - features['Volume'])/features['Volume'] > 200:
+                print('Volume convex exceeded 200%')
+                features = {}
+                return features
+        if self.dim == 2:
+            if 100*(features['Area convex'] - features['Area'])/features['Area'] > 200:
+                print('Area convex exceeded 200%')
+                features = {}
+                return features
+            
         
         
         

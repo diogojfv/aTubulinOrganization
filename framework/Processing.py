@@ -56,12 +56,13 @@ from skan.csr import skeleton_to_csgraph, sholl_analysis,make_degree_image
 import scipy as sp
 import scipy.sparse
 from matplotlib.patches import Circle
-from framework.ImageFeatures import ImageFeatures
-from framework.Functions import FeaturesFromCentroid, cv2toski,pylsdtoski,polar_to_cartesian, truncate_colormap, plot_hist, plot_pie, remove_not1D, quantitative_analysis,hist_bin,hist_lim,create_separate_DFs,branch,graphAnalysis
+from framework.ImageFeatures import ImageFeatures,getvoxelsize
+from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,create_separate_DFs,branch,graphAnalysis
 from framework.Importing import label_image,init_import
-from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
-from framework.PreProcessingNUCL import excludeborder, nuclei_segmentation , df_nuclei_preprocessing
+#from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
+#from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
 
+#from framework.visualization import truncate_colormap, plot_hist, plot_pie
 #from fractal_dimension import fractal_dimension
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
 
@@ -382,11 +383,12 @@ def line_segment_features(features,original_img,img_index,mask,patch,xy,centroid
         mat_scores   = radialscore(lines,gridpoints,x_,y_)
         radialSC     = round(np.max(mat_scores),3)
         radialSC_pos = [np.argwhere(mat_scores == np.max(mat_scores))[0]]
+        features2D  += [('LSF2D:Radial Pos',radialSC_pos)]
         features1D  += [('LSF1D:Radial Score',radialSC)]
     
 
                                                                                          
-    return lines, median_points, cytocenter, radialSC_pos, features2D, features1D
+    return lines, median_points, cytocenter, features2D, features1D
 
 
 def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features):
@@ -394,7 +396,7 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     # data   - data with any key:
                   # - RGB
                   # - CYTO_DECONV with algorithm CYTO_DECONV
-                  # - NUCL_DECONV with algorithm
+                  # - NUCL_DECONV with algorithm NUCL_PRE
                   # - 
                     
     # Useful variables:
@@ -457,7 +459,7 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     
 #     # PROCESSING: Line Segment Analysis
 #     global lines, median_points, features2D, features1D
-    lines, median_points, cytocenter, radialSC_pos, LSF2D, LSF1D = line_segment_features(features,aux_,img_id,mask,patch,(x_,y_),centroid,False)
+    lines, median_points, cytocenter, LSF2D, LSF1D = line_segment_features(features,aux_,img_id,mask,patch,(x_,y_),centroid,False)
     
 
 #     # TEXTURAL ANALYSIS
@@ -466,13 +468,15 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     AAI = getAAI(skel_w_int)
     
     # PROCESSING: **CYTOSKELETONS**
-    feats_all                    = ImageFeatures((patch_f_norm *255).astype(np.uint8))
+    print(os.path.dirname(os.getcwd()) + "\\Datasets\\Set 1-a-tubulin_Sofia\\CYTO_DECONV\\" + str(name))
+    feats_all                    = ImageFeatures((patch_f_norm *255).astype(np.uint8),os.path.dirname(os.getcwd()) + "\\Datasets\\Set 1-a-tubulin_Sofia\\CYTO_DECONV\\" + str(name))
     feats_labels_, feats_values_ = feats_all.print_features(print_values = False)
     feats_labels_, feats_values_ = remove_not1D(feats_labels_,feats_values_)
     feats_labels_                = ['DCF:' + ftf for ftf in feats_labels_]
  
     # PROCESSING: **NUCLEI**
-    feats_all_n                      = ImageFeatures((patch_n_norm *255).astype(np.uint8))
+    print(os.path.dirname(os.getcwd()) + "\\Datasets\\Set 1-a-tubulin_Sofia\\NUCL_DECONV\\" + str(name))
+    feats_all_n                      = ImageFeatures((patch_n_norm *255).astype(np.uint8),os.path.dirname(os.getcwd()) + "\\Datasets\\Set 1-a-tubulin_Sofia\\NUCL_DECONV\\" + str(name))
     feats_labels_n_, feats_values_n_ = feats_all_n.print_features(print_values = False)
     feats_labels_n_, feats_values_n_ = remove_not1D(feats_labels_n_,feats_values_n_)
     feats_labels_n_                  = ['DNF:' + ftn for ftn in feats_labels_n_]
