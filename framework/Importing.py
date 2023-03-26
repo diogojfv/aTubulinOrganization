@@ -103,7 +103,7 @@ def init_import(folder, options):
         
     # GRAY-SCALE (2D) DECONVOLUTED CYTOSKELETON IMAGES
     if "CYTO_DECONV" in options:
-        DeconvDF = pd.DataFrame(columns=['Name','Label','Image'])
+        DeconvDF = pd.DataFrame(columns=['Path','Name','Label','Image'])
         for img in os.listdir(folder + "\\CYTO_DECONV"):
             path     = folder + "\\CYTO_DECONV\\" + img
             if img.split('_')[0] == 'Synthetic':
@@ -114,27 +114,27 @@ def init_import(folder, options):
             else:
                 image    = cv2.imread(path,-1)  # Size: (1040,1388)
                 img_id   = int(img.split('_')[1])
-                new      = pd.DataFrame(data={'Name': [img], 'Label': [label_image(img_id)], 'Image': [image]}, index = [img_id])
+                new      = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [label_image(img_id)], 'Image': [image]}, index = [img_id])
                 DeconvDF = pd.concat([DeconvDF, new], axis=0,ignore_index=False)
         res["CYTO_DECONV"] = DeconvDF
         print(">>> [CYTO_DECONV] added.")
         
     # GRAY-SCALE (2D) DECONVOLUTED NUCLEI IMAGES
     if "NUCL_DECONV" in options:
-        NucleiDeconvDF = pd.DataFrame(columns=['Name','Label','Image'])
+        NucleiDeconvDF = pd.DataFrame(columns=['Path','Name','Label','Image'])
         for img in os.listdir(folder + "\\NUCL_DECONV"):
             path           = folder + "\\NUCL_DECONV\\" + img
             #image          = nuclei_preprocessing(cv2.imread(path,-1))
             image          = cv2.imread(path,-1)
             img_id         = int(img.split('_')[1])
-            new            = pd.DataFrame(data={'Name': [img], 'Label': [label_image(img_id)], 'Image': [image]}, index = [img_id])
+            new            = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [label_image(img_id)], 'Image': [image]}, index = [img_id])
             NucleiDeconvDF = pd.concat([NucleiDeconvDF, new], axis=0,ignore_index=False)
         res["NUCL_DECONV"] = NucleiDeconvDF
         print(">>> [NUCL_DECONV] added.")
         
     # 3D GRAY-SCALE SEPARATED RGB CHANNELS
     if "3D" in options:
-        TenDF = pd.DataFrame(columns=['Name','Channel','Label','Image'])
+        TenDF = pd.DataFrame(columns=['Path','Name','Channel','Label','Image'])
         for img in os.listdir(folder + "\\3D"):
             path    = folder + "\\3D\\" + img
             image   = tiffio.imread(path)
@@ -146,9 +146,9 @@ def init_import(folder, options):
                 img_id  = int(img.split('_')[1])
             
             try:
-                new     = pd.DataFrame(data={'Name': [img], 'Channel': int(img.split('_')[-1][3]), 'Label': [label_image(img_id)], 'Image': [image]}, index = [img_id])
+                new     = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Channel': int(img.split('_')[-1][3]), 'Label': [label_image(img_id)], 'Image': [image]}, index = [img_id])
             except:
-                new     = pd.DataFrame(data={'Name': [img], 'Channel': int(img.split('_')[-2][3]), 'Label': [label_image(img_id)], 'Image': [image]}, index = [img_id])
+                new     = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Channel': int(img.split('_')[-2][3]), 'Label': [label_image(img_id)], 'Image': [image]}, index = [img_id])
             TenDF   = pd.concat([TenDF, new], axis=0,ignore_index=False)
         res["3D"] = TenDF
         print(">>> [3D] added.")

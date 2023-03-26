@@ -269,7 +269,7 @@ def getvoxelsize(folder):
             zres = ij_metadata['spacing']
         except:
             print('Image is 2D. Using default voxel height (z = 1)')
-            return xres,yres
+            return 1,xres,yres
     else:
         print('Using default voxel height (z = 1)')
         zres = 1

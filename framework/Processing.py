@@ -446,12 +446,12 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
 #         aux_n_    = mask * ( / np.max(NucleiDeconvDF['Image'][text_img[1]]))
 
 
-#     try:
-#         contourr = centroids.loc[centroid_list[0]]['Contour'] 
-#         cr       = contourr.reshape((contourr.shape[0],contourr.shape[2]))
-#     except:
-#         contourr = centroids.loc[centroid_list[0]]['Contour'][0]
-#         cr       = contourr.reshape((contourr.shape[0],contourr.shape[2]))
+    try:
+        contourr = data['NUCL_PRE'].loc[centroid_id]['Contour'] 
+        cr       = contourr.reshape((contourr.shape[0],contourr.shape[2]))
+    except:
+        contourr = data['NUCL_PRE'].loc[centroid_id]['Contour'][0]
+        cr       = contourr.reshape((contourr.shape[0],contourr.shape[2]))
 #     patch_n  = aux_n[min(cr[:,1]):max(cr[:,1]),min(cr[:,0]):max(cr[:,0])]
 #     patch_n_norm = patch_n / np.max(aux_n)
     patch_n = aux_n_[min(rownuc['Nucleus Mask'][0]):max(rownuc['Nucleus Mask'][0]),min(rownuc['Nucleus Mask'][1]):max(rownuc['Nucleus Mask'][1])]
@@ -468,15 +468,13 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     AAI = getAAI(skel_w_int)
     
     # PROCESSING: **CYTOSKELETONS**
-    print(os.path.dirname(os.getcwd()) + "\\Datasets\\Set 1-a-tubulin_Sofia\\CYTO_DECONV\\" + str(name))
-    feats_all                    = ImageFeatures((patch_f_norm *255).astype(np.uint8),os.path.dirname(os.getcwd()) + "\\Datasets\\Set 1-a-tubulin_Sofia\\CYTO_DECONV\\" + str(name))
+    feats_all                    = ImageFeatures((patch_f_norm *255).astype(np.uint8),data['CYTO_DECONV'].loc[img_id]['Path'])
     feats_labels_, feats_values_ = feats_all.print_features(print_values = False)
     feats_labels_, feats_values_ = remove_not1D(feats_labels_,feats_values_)
     feats_labels_                = ['DCF:' + ftf for ftf in feats_labels_]
  
     # PROCESSING: **NUCLEI**
-    print(os.path.dirname(os.getcwd()) + "\\Datasets\\Set 1-a-tubulin_Sofia\\NUCL_DECONV\\" + str(name))
-    feats_all_n                      = ImageFeatures((patch_n_norm *255).astype(np.uint8),os.path.dirname(os.getcwd()) + "\\Datasets\\Set 1-a-tubulin_Sofia\\NUCL_DECONV\\" + str(name))
+    feats_all_n                      = ImageFeatures((patch_n_norm *255).astype(np.uint8),data['NUCL_DECONV'].loc[img_id]['Path'])
     feats_labels_n_, feats_values_n_ = feats_all_n.print_features(print_values = False)
     feats_labels_n_, feats_values_n_ = remove_not1D(feats_labels_n_,feats_values_n_)
     feats_labels_n_                  = ['DNF:' + ftn for ftn in feats_labels_n_]
@@ -492,8 +490,8 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     # Add to DataFrame
     global ResultsDF,new
     if 'ResultsDF' not in globals():
-            ResultsDF = pd.DataFrame(columns = ['Name'] + ['Img Index'] + ['Label'] + ['Mask'] + ['Patches'] + ['Nucleus Centroid'] + ['Cytoskeleton Centroid'] + ['Centrossome'] + ['Lines'] + [xç for xç,yç in LSF2D] + [xe for xe,ye in LSF1D] + ['DCF:AAI'] + list(feats_labels_n_))
-    new          = pd.Series([name] + [img_id] + [label] + [mask] + [[patch,patch_f,patch_n,aux_* orig_cysk,x_,y_]] + [centroid] + [cytocenter] + [radialSC_pos] + [lines] +  [yç for xç,yç in LSF2D] + [ye for xe,ye in LSF1D] + [AAI] + feats_values_n_,index=ResultsDF.columns)
+            ResultsDF = pd.DataFrame(columns = ['Name'] + ['Img Index'] + ['Label'] + ['Mask'] + ['Patches'] + ['Nucleus Contour'] + ['Nucleus Centroid'] + ['Cytoskeleton Centroid'] + ['Lines'] + [xç for xç,yç in LSF2D] + [xe for xe,ye in LSF1D] + ['DCF:AAI'] + list(feats_labels_n_))
+    new          = pd.Series([name] + [img_id] + [label] + [mask] + [[patch,patch_f,patch_n,aux_* orig_cysk,x_,y_]] + [cr] + [centroid] + [cytocenter] + [lines] +  [yç for xç,yç in LSF2D] + [ye for xe,ye in LSF1D] + [AAI] + feats_values_n_,index=ResultsDF.columns)
 #     ImageLinesDF = ImageLinesDF.append(new,ignore_index=True)
     ResultsDF = pd.concat([ResultsDF,new.to_frame().T],axis=0,ignore_index=True)
          
@@ -505,7 +503,7 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
 #     new          = pd.Series([DeconvDF['Name'][text_img[1]]] + [text_img[1]] + [DeconvDF['Label'][text_img[1]]] + [mask] + [[patch,patch_f,patch_n,aux_* orig_cysk,x_,y_]] + [centroid] + [cytocenter] + [cr] + [radialSC_pos] + [lines] + [[graph]] + [shollhist] + [yç for xç,yç in features2D] + [ye for xe,ye in features1D] + [AAI] + fractal_values_b + fractal_values_d + fdske + fd_deconv + fd_nuc + feats_values_n_ + [graph_ft for graph_ft in list(zip(*graph_res))[1]] + [y for x,y in cncd],index=ImageLinesDF.columns)
 #     ImageLinesDF = ImageLinesDF.append(new,ignore_index=True)
         
-    return Results
+    return ResultsDF
 
 
 # # Analyze Cell
