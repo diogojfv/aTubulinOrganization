@@ -94,12 +94,14 @@ def ROI_centroid(data,img_id,ROIcoords):
     return centroid_list[0],centroid
 
 def line_segment_features(features,original_img,img_index,mask,patch,xy,centroid,plot):
-    # original_img = original skeleton image
-    # img_index    = image index
-    # mask         = ROI mask of desired cell 
-    # patch        = np.array with skeleton p atch
-    # xy           = [x_,y_] = [(x1,x2),(y1,y2)]
-    # centroids    = Centroids[image index] dataframe
+    """
+    - original_img = original skeleton image
+    - img_index    = image index
+    - mask         = ROI mask of desired cell 
+    - patch        = np.array with skeleton p atch
+    - xy           = [x_,y_] = [(x1,x2),(y1,y2)]
+    - centroids    = Centroids[image index] dataframe
+    """
     
     # Create flags
     flagAlpha, flagDtC, flagTri, flagLL, flagTheta, flagAG, flagStdAD, flagLLD, flagStdLLD, flagPAD, flagMCM, flagTAD = False,False,False,False,False,False,False,False,False,False,False,False
@@ -393,12 +395,13 @@ def line_segment_features(features,original_img,img_index,mask,patch,xy,centroid
 
 def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features):
     """
-    # rowROI - dataframe with specific ROI corresponding to a cell
-    # data   - data with any key:
-                  # - RGB
-                  # - CYTO_DECONV with algorithm CYTO_DECONV
-                  # - NUCL_DECONV with algorithm NUCL_PRE
-                  # - 
+    rowROI - dataframe with specific ROI corresponding to a cell
+    data   - data with any key:
+                  - RGB
+                  - CYTO_DECONV with algorithm CYTO_DECONV
+                  - NUCL_DECONV with algorithm NUCL_PRE
+                  - 
+    algorithm_cyto - 
     """
                     
     # Useful variables:
@@ -438,7 +441,8 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
         
     # SKELETON PATCH
     global x_,y_,patch
-    x_,y_   = np.where(mesqueleto != 0) #x_,y_   = np.where((mask*1) != 0) QUAL??
+    #x_aux,y_aux = np.where(mesqueleto != 0) # aux_n[rownuc['Nucleus Mask'][0],rownuc['Nucleus Mask'][1]] = 1 desta maneira
+    x_,y_   = np.where((mask*1) != 0) # resolver aqui para fazer um retangulo de branco com pad2 para as figuras ficarem direitas
     patch   = mesqueleto[min(x_):max(x_),min(y_):max(y_)]
     
     # DECONVOLUTED CYTOSKELETON PATCH
@@ -493,17 +497,17 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
 #     # PROCESSING: Graph Analysis
     global int_ske, graph, graph_res, shollhist, cncd, pxlcount
     #int_ske         = (mesqueleto * aux_f) / np.max(aux_f) 
-    graph,graph_res,shollhist = cyto_graph_features(mesqueleto_norm,features,[x_,y_],[aux_n_,centroid,cr],mask,False)
+    graph,CNFs,shollhist = cyto_graph_features(mesqueleto_norm,features,[x_,y_],[aux_n_,centroid,cr],mask,False)
     
 #     # PROCESSING: Others
-#     cncd = Others(aux_f,aux_n,lines)
+    cncd = Others(aux_f,aux_n)
 
     # Add to DataFrame
     global ResultsDF,new
     if 'ResultsDF' not in globals():
-        ResultsDF = pd.DataFrame(columns = ['Name'] + ['Img Index'] + ['Label'] + ['Mask'] + ['Patches'] + ['Nucleus Contour'] + ['Nucleus Centroid'] + ['Cytoskeleton Centroid'] + ['Lines'] + [xç for xç,yç in LSFs] + list(feats_labels_n_) + [xg for xg,yg in graph_res])
+        ResultsDF = pd.DataFrame(columns = ['Name'] + ['Img Index'] + ['Label'] + ['Mask'] + ['Patches'] + ['Nucleus Contour'] + ['Nucleus Centroid'] + ['Cytoskeleton Centroid'] + ['Lines'] + [xç for xç,yç in LSFs] + list(feats_labels_n_) + [xg for xg,yg in CNFs])
         
-    new       = pd.Series([name] + [img_id] + [label] + [mask] + [[patch,patch_f_norm,patch_n_norm,mesqueleto,x_,y_]] + [cr] + [centroid] + [cytocenter] + [lines] +  [yç for xç,yç in LSFs] + feats_values_n_ + [yg for xg,yg in graph_res], index=ResultsDF.columns)
+    new       = pd.Series([name] + [img_id] + [label] + [mask] + [[patch,patch_f_norm,patch_n_norm,mesqueleto,x_,y_]] + [cr] + [centroid] + [cytocenter] + [lines] +  [yç for xç,yç in LSFs] + feats_values_n_ + [yg for xg,yg in CNFs], index=ResultsDF.columns)
 
     ResultsDF = pd.concat([ResultsDF,new.to_frame().T],axis=0,ignore_index=True)
          
@@ -617,13 +621,15 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
 
 
 def cyto_graph_features(sk,features,infocyto,infonucl,mask,plot): #old graphanalysis
-    global skeleton
     """
     # infocyto = [x_,y_]
     # infonucl = [NucleiDeconvDF['Image'][row['Index']],centroid,cr] 
     #graph = sknw.build_sknw(skeleton,multi=False,**[{'iso':False}])
     
     """
+    
+    global skeleton
+    
     # Convert skeleton to skeleton object
     ske = Skeleton((sk).astype(float)) 
     
@@ -635,16 +641,24 @@ def cyto_graph_features(sk,features,infocyto,infonucl,mask,plot): #old graphanal
     
     
     # FEATURE: Number of paths (1D):
-    if 'SKNW1D:Number of Branches' in features:
+    if 'CNF1D:Number of Branches' in features:
         Npaths = ske.n_paths
-        CNFs += [('SKNW1D:Number of Branches',Npaths)]
+        CNFs += [('CNF1D:Number of Branches',Npaths)]
     
     # FEATURE: Branch distance, Mean/Std Pixel Values, Eucl distance
     cols = ['branch-distance','mean-pixel-value','stdev-pixel-value','euclidean-distance']
     for col in cols:
-        names    = tools.signal_stats(list(branch_data[col]))._names
-        features = np.array(list(tools.signal_stats(list(branch_data[col]))))
-        res += list(zip(['SKNW1D:' + str(col) +str(' ') + str(f) for f in names],features))
+        CNFs += [("CNF2D:" + str(col),np.array(branch_data[col]))]
+        
+        # 2D to 1D features with statistics
+        prefix = "CNF1D:" + str(col)
+        CNFs += statistics_from_2D_features(prefix,branch_data[col])
+        
+       
+        
+#         names    = tools.signal_stats(list(branch_data[col]))._names
+#         features = np.array(list(tools.signal_stats(list(branch_data[col]))))
+#         CNFs += list(zip(['SKNW1D:' + str(col) +str(' ') + str(f) for f in names],features))
     
     
     # Path grouping
@@ -653,23 +667,23 @@ def cyto_graph_features(sk,features,infocyto,infonucl,mask,plot): #old graphanal
     for typ in np.unique(branch_data['branch-type']):
         br_type_data = branch_data[branch_data['branch-type'] == typ]
         
-        CNFs += [(str('SKNW1D:Number of ') + str(br_type_nams[typ]),len(br_type_data)),
-                (str('SKNW1D:Ratio of ') + str(br_type_nams[typ]),len(br_type_data)/Npaths)]
+        CNFs += [(str('CNF1D:Number of ') + str(br_type_nams[typ]),len(br_type_data)),
+                (str('CNF1D:Ratio of ') + str(br_type_nams[typ]),len(br_type_data)/Npaths)]
         
         for col_ in cols:
-            CNFs += [(str('SKNW1D:Mean of ') + str(br_type_nams[typ]) + str(' ') + str(col_),np.mean(br_type_data[col_])),
-                    (str('SKNW1D:Std of ') + str(br_type_nams[typ]) + str(' ') + str(col_),np.std(br_type_data[col_]))]
+            CNFs += [(str('CNF1D:Mean of ') + str(br_type_nams[typ]) + str(' ') + str(col_),np.mean(br_type_data[col_])),
+                    (str('CNF1D:Std of ') + str(br_type_nams[typ]) + str(' ') + str(col_),np.std(br_type_data[col_]))]
             
     # Handle Isolated cycles
     if 3 not in np.unique(branch_data['branch-type']): 
         data = np.zeros_like(branch_data[branch_data['branch-type'] == 1])
         
-        CNFs += [(str('SKNW1D:Number of ') + str(br_type_nams[3]),0),
-                (str('SKNW1D:Ratio of ') + str(br_type_nams[3]),0)]
+        CNFs += [(str('CNF1D:Number of ') + str(br_type_nams[3]),0),
+                (str('CNF1D:Ratio of ') + str(br_type_nams[3]),0)]
         
         for col_ in cols:
-            CNFs += [(str('SKNW1D:Mean of ') + str(br_type_nams[3]) + str(' ') + str(col_),0),
-                    (str('SKNW1D:Std of ') + str(br_type_nams[3]) + str(' ') + str(col_),0)]
+            CNFs += [(str('CNF1D:Mean of ') + str(br_type_nams[3]) + str(' ') + str(col_),0),
+                    (str('CNF1D:Std of ') + str(br_type_nams[3]) + str(' ') + str(col_),0)]
         
     #br_type_lens = [len(branch_data[branch_data['branch-type'] == typ]) for typ in np.unique(branch_data['branch-type'] )]
     
@@ -718,11 +732,11 @@ def cyto_graph_features(sk,features,infocyto,infonucl,mask,plot): #old graphanal
     #branch_feats = branch(sk,ske,[infocyto[0],infocyto[1]],[mask * infonucl[0],infonucl[1],infonucl[2]])
                    
     # Sholl Analysis
-    sholl_feats,sholl_hist = sholl(sk,[infocyto[0],infocyto[1]],[mask * infonucl[0],infonucl[1],infonucl[2]],plot)
+    sholl_feats,sholl_hist = sholl(sk,[infocyto[0],infocyto[1]],[mask * infonucl[0],infonucl[1],infonucl[2]])
     
     #G = nx.from_scipy_sparse_matrix(pixel_graph)  ou nx.from_scipy_sparse_matrix(ske.graph) representação N+1??? nx.density
     
-    return ske.graph,branch_feats + sholl_feats,sholl_hist
+    return ske.graph,CNFs + sholl_feats,sholl_hist
 
 
 
@@ -736,6 +750,9 @@ def sholl(img,cyto_info,nuclei_info):
     # cyto info  = [x_,y_]
     #nuclei info = [nuclei img   , centroid,contour (cr)]
     """
+    
+    # Sholl features
+    sholl_feats = []
     
     # Get cytoskeleton centroid
     cytoCentroid = regionprops((img!=0)*1,img)[0].centroid #without offset
@@ -762,16 +779,53 @@ def sholl(img,cyto_info,nuclei_info):
     tableCy     = pd.DataFrame({'radius': shell_radii_Cy, 'crossings': counts_Cy})
     tableNc     = pd.DataFrame({'radius': shell_radii_Nc, 'crossings': counts_Nc})
     
-    fts         = tools.signal_stats(list(tableCy['crossings']))._names
-    tempCy      = np.array(list(tools.signal_stats(list(tableCy['crossings']))))
-    tempNc      = np.array(list(tools.signal_stats(list(tableNc['crossings']))))
+    # Statistics
+    c = 0
+    for tab in [tableCy,tableNc]:
+        cross = tab['crossings']
+        if c == 0:
+            prefix = "CNF1D:Sholl Crossings Cyto"
+            c += 1
+        if c == 1:
+            prefix = "CNF1D:Sholl Crossings Nucl"
+            
+        sholl_feats = sholl_feats + statistics_from_2D_features(prefix,cross)
+
     
-    sholl_feats = list(zip(['SKNW1D:Sholl Crossings Cyto ' + str(f) for f in fts],tempCy)) + list(zip(['SKNW1D:Sholl Crossings Nuclei ' + str(fn) for fn in fts],tempNc))
+#     fts         = tools.signal_stats(list(tableCy['crossings']))._names
+    
+#     tempCy      = np.array(list(tools.signal_stats(list(tableCy['crossings']))))
+#     tempNc      = np.array(list(tools.signal_stats(list(tableNc['crossings']))))
+    
+#     sholl_feats = list(zip(['CNF1D:Sholl Crossings Cyto ' + str(f) for f in fts],tempCy)) + list(zip(['CNF1D:Sholl Crossings Nuclei ' + str(fn) for fn in fts],tempNc))
 
     return sholl_feats,[tableCy,tableNc]
-                   
+           
+
+def statistics_from_2D_features(prefix,data_array):
+    """
+    Receives a feature name prefix and a dim = 2 data array. Returns a list with tuples (feature_name,stat_val)
+    """
+    
+    from scipy.stats import kurtosis, skew
+    
+    res = []
+    res += [(prefix + " mean",np.mean(data_array))]
+    res += [(prefix + " median",np.median(data_array))]
+    res += [(prefix + " min",np.min(data_array))]
+    res += [(prefix + " max",np.max(data_array))]
+    #CNFs += [(prefix + " max_amp",np.mean(branch_data[col]))]
+    res += [(prefix + " var",np.var(data_array))]
+    res += [(prefix + " std_dev",np.std(data_array))]
+    #CNFs += [(prefix + " abs_dev",np.mean(branch_data[col]))]
+    res += [(prefix + " kurtosis",kurtosis(data_array))]
+    res += [(prefix + " skewness",skew(data_array))]
+    res += [(prefix + " cv",np.std(data_array)/np.mean(data_array))]
+    
+    return res
 
 
+# deprecated?
 def newtheta(lines):
     thetas = []
     for line in lines:
@@ -791,15 +845,15 @@ def newtheta(lines):
 
 
 
-def Others(img_cyto,img_nucl,lines):
+def Others(img_cyto,img_nucl):
     # Cyto-Nuc Centroid Divergence:
     rprops_cyto,rprops_nucl = regionprops((img_cyto!=0)*1,img_cyto),regionprops((img_nucl!=0)*1,img_nucl)
     centro_cyto,centro_nucl = rprops_cyto[0].centroid,rprops_nucl[0].centroid
     w_centro_cyto,w_centro_nucl = rprops_cyto[0].weighted_centroid,rprops_nucl[0].weighted_centroid
 
-    return [('OTHERS:Cytoskeleton-Nuclei Centroid Distance',np.linalg.norm((centro_cyto[0] - centro_nucl[0],centro_cyto[1] - centro_nucl[1]))),
-            ('OTHERS:Weighted Cytoskeleton-Nuclei Centroid Distance',np.linalg.norm((w_centro_cyto[0] - w_centro_nucl[0],w_centro_cyto[1] - w_centro_nucl[1]))),
-            ('OTHERS:Area Ratio (Cyto vs. Nucl)',rprops_nucl[0].area/rprops_cyto[0].area)]
+    return [('DCF:Cytoskeleton-Nuclei Centroid Distance',np.linalg.norm((centro_cyto[0] - centro_nucl[0],centro_cyto[1] - centro_nucl[1]))),
+            ('DCF:Weighted Cytoskeleton-Nuclei Centroid Distance',np.linalg.norm((w_centro_cyto[0] - w_centro_nucl[0],w_centro_cyto[1] - w_centro_nucl[1]))),
+            ('DCF:Area Ratio (Cyto vs. Nucl)',rprops_nucl[0].area/rprops_cyto[0].area)]
 
 def HI(angles):
     theta_rad = np.array(angles)*np.pi/180

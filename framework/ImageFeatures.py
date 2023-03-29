@@ -502,6 +502,7 @@ class ImageFeatures:
         features['Entropy']        = shannon_entropy(self.img, base=2) #The Shannon entropy is defined as S = -sum(pk * log(pk)), where pk are frequency/probability of pixels of value k.
 #         features['Inertia Tensor Highest Eigenvalue'] = props[0].inertia_tensor_eigvals[0]
 #         features['Inertia Tensor Lowest Eigenvalue'] = props[0].inertia_tensor_eigvals[1]
+        features['CV'] = features['Std'] / features['Mean Intensity']
         
         try:
             features['AAI'] = getAAI(self.skel)
