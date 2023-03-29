@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>framework.ImageFeatures &mdash; CYSK Documentation 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            CYSK Documentation
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../framework.html">framework package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">CYSK Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">framework.ImageFeatures</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for framework.ImageFeatures</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">skimage.measure</span> <span class="kn">import</span> <span class="n">regionprops</span><span class="p">,</span><span class="n">shannon_entropy</span><span class="p">,</span><span class="n">marching_cubes</span><span class="p">,</span><span class="n">mesh_surface_area</span>
+<span class="kn">from</span> <span class="nn">skimage.filters</span> <span class="kn">import</span> <span class="n">gabor_kernel</span>
+<span class="kn">from</span> <span class="nn">skimage.feature</span> <span class="kn">import</span> <span class="n">graycomatrix</span><span class="p">,</span> <span class="n">graycoprops</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">ndimage</span> <span class="k">as</span> <span class="n">ndi</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">signal</span>
+<span class="kn">from</span> <span class="nn">statistics</span> <span class="kn">import</span> <span class="n">mean</span> 
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">skew</span><span class="p">,</span> <span class="n">kurtosis</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+
+<span class="k">def</span> <span class="nf">fractal_dimension</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.9</span><span class="p">):</span>
+
+    <span class="c1"># Only for 2d image</span>
+    <span class="k">assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># From https://github.com/rougier/numpy-100 (#87)</span>
+    <span class="k">def</span> <span class="nf">boxcount</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+        <span class="n">S</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">reduceat</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">reduceat</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">k</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+                               <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">k</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># We count non-empty (0) and non-full boxes (k*k)</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">S</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">S</span> <span class="o">&lt;</span> <span class="n">k</span><span class="o">*</span><span class="n">k</span><span class="p">))[</span><span class="mi">0</span><span class="p">])</span>
+
+
+    <span class="c1"># Transform Z into a binary array</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="p">(</span><span class="n">Z</span> <span class="o">&lt;</span> <span class="n">threshold</span><span class="p">)</span>
+
+    <span class="c1"># Minimal dimension of image</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="c1"># Greatest power of 2 less than or equal to p</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="mi">2</span><span class="o">**</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+
+    <span class="c1"># Extract the exponent</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+
+    <span class="c1"># Build successive box sizes (from 2**n down to 2**1)</span>
+    <span class="n">sizes</span> <span class="o">=</span> <span class="mi">2</span><span class="o">**</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Actual box counting with decreasing size</span>
+    <span class="n">counts</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="n">sizes</span><span class="p">:</span>
+        <span class="n">counts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">boxcount</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">size</span><span class="p">))</span>
+
+    <span class="c1"># Fit the successive log(sizes) with log (counts)</span>
+    <span class="n">coeffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sizes</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">counts</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="o">-</span><span class="n">coeffs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="c1">#I = scipy.misc.imread(&quot;sierpinski.png&quot;)/256.0</span>
+<span class="c1">#print(&quot;Minkowski–Bouligand dimension (computed): &quot;, fractal_dimension(I))</span>
+<span class="c1">#print(&quot;Haussdorf dimension (theoretical):        &quot;, (np.log(3)/np.log(2)))</span>
+
+
+<div class="viewcode-block" id="boxcount"><a class="viewcode-back" href="../../framework.html#framework.ImageFeatures.boxcount">[docs]</a><span class="k">def</span> <span class="nf">boxcount</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    returns a count of squares of size kxk in which there are both colours (black and white), ie. the sum of numbers</span>
+<span class="sd">    in those squares is not 0 or k^2</span>
+<span class="sd">    Z: np.array, matrix to be checked, needs to be 2D</span>
+<span class="sd">    k: int, size of a square</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">S</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">reduceat</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">reduceat</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">k</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">k</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># jumps by powers of 2 squares</span>
+
+    <span class="c1"># We count non-empty (0) and non-full boxes (k*k)</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">S</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">S</span> <span class="o">&lt;</span> <span class="n">k</span> <span class="o">*</span> <span class="n">k</span><span class="p">))[</span><span class="mi">0</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="boxcount_grayscale"><a class="viewcode-back" href="../../framework.html#framework.ImageFeatures.boxcount_grayscale">[docs]</a><span class="k">def</span> <span class="nf">boxcount_grayscale</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    find min and max intensity in the box and return their difference</span>
+<span class="sd">    Z - np.array, array to find difference in intensities in</span>
+<span class="sd">    k - int, size of a box</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">S_min</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fmin</span><span class="o">.</span><span class="n">reduceat</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fmin</span><span class="o">.</span><span class="n">reduceat</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">k</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">k</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">S_max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fmax</span><span class="o">.</span><span class="n">reduceat</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fmax</span><span class="o">.</span><span class="n">reduceat</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">k</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">k</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">S_max</span> <span class="o">-</span> <span class="n">S_min</span></div>
+
+
+<div class="viewcode-block" id="fractal_dimension"><a class="viewcode-back" href="../../framework.html#framework.ImageFeatures.fractal_dimension">[docs]</a><span class="k">def</span> <span class="nf">fractal_dimension</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.9</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    calculate fractal dimension of an object in an array defined to be above certain threshold as a count of squares</span>
+<span class="sd">    with both black and white pixels for a sequence of square sizes. The dimension is the a coefficient to a poly fit</span>
+<span class="sd">    to log(count) vs log(size) as defined in the sources.</span>
+<span class="sd">    :param Z: np.array, must be 2D</span>
+<span class="sd">    :param threshold: float, a thr to distinguish background from foreground and pick up the shape, originally from</span>
+<span class="sd">    (0, 1) for a scaled arr but can be any number, generates boolean array</span>
+<span class="sd">    :return: coefficients to the poly fit, fractal dimension of a shape in the given arr</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Only for 2d image</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># Transform Z into a binary array</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="p">(</span><span class="n">Z</span> <span class="o">&lt;</span> <span class="n">threshold</span><span class="p">)</span>
+
+    <span class="c1"># Minimal dimension of image</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="c1"># Greatest power of 2 less than or equal to p</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+
+    <span class="c1"># Extract the exponent</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+
+    <span class="c1"># Build successive box sizes (from 2**n down to 2**1)</span>
+    <span class="n">sizes</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Actual box counting with decreasing size</span>
+    <span class="n">counts</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="n">sizes</span><span class="p">:</span>
+        <span class="n">counts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">boxcount</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">size</span><span class="p">))</span>
+
+    <span class="c1"># Fit the successive log(sizes) with log (counts)</span>
+    <span class="n">coeffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sizes</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">counts</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="o">-</span><span class="n">coeffs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="hcorr"><a class="viewcode-back" href="../../framework.html#framework.ImageFeatures.hcorr">[docs]</a><span class="k">def</span> <span class="nf">hcorr</span><span class="p">(</span><span class="n">idd</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">9</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">8.7466670</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">11</span><span class="p">:</span> 
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">10.2433330</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">16</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">3.6255560</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">18</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">3.5422220</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">20</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">3.5422220</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">30</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">2.7800000</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">34</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">5.1844440</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">36</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">2.8955560</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">38</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">2.8955560</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">40</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">4.4233330</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">42</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">3.8311110</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">44</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">2.6900000</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">59</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">4.9966670</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">63</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">5.8877780</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">66</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">5.8877780</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">70</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">6.9944440</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">72</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">6.6288890</span>
+    <span class="k">if</span> <span class="n">idd</span> <span class="o">==</span> <span class="mi">74</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="mf">7.5977780</span>
+        
+    <span class="k">return</span> <span class="n">z</span></div>
+
+
+<div class="viewcode-block" id="fractal_dimension_grayscale"><a class="viewcode-back" href="../../framework.html#framework.ImageFeatures.fractal_dimension_grayscale">[docs]</a><span class="k">def</span> <span class="nf">fractal_dimension_grayscale</span><span class="p">(</span><span class="n">Z</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    works the same as fractal_dimension() just does not look at counts and does not require a binary arr rather is looks</span>
+<span class="sd">    at intensities (hence can be used for a grayscale image) and returns fractal dimensions D_B and D_M (based on sums</span>
+<span class="sd">    and means), as described in https://imagej.nih.gov/ij/plugins/fraclac/FLHelp/Glossary.htm#grayscale</span>
+<span class="sd">    :param Z: np. array, must be 2D</span>
+<span class="sd">    :return: D_B and D_M fractal dimensions based on polyfit to log(sum) or log(mean) resp. vs log(sizes)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Only for 2d image</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># Minimal dimension of image</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="c1"># Greatest power of 2 less than or equal to p</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+
+    <span class="c1"># Extract the exponent</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+
+    <span class="c1"># Build successive box sizes (from 2**n down to 2**1)</span>
+    <span class="n">sizes</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Actual box counting with decreasing size</span>
+    <span class="n">i_difference</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="n">sizes</span><span class="p">:</span>
+        <span class="n">i_difference</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">boxcount_grayscale</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">size</span><span class="p">))</span>
+
+    <span class="c1"># D_B</span>
+    <span class="n">d_b</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">i_difference</span><span class="p">]</span>
+
+    <span class="c1"># D_M</span>
+    <span class="n">d_m</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">i_difference</span><span class="p">]</span>
+
+    <span class="c1"># Fit the successive log(sizes) with log (sum)</span>
+    <span class="n">coeffs_db</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sizes</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">d_b</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="c1"># Fit the successive log(sizes) with log (mean)</span>
+    <span class="n">coeffs_dm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sizes</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">d_m</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="o">-</span><span class="n">coeffs_db</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="n">coeffs_dm</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="fractal_dimension_grayscale_DBC"><a class="viewcode-back" href="../../framework.html#framework.ImageFeatures.fractal_dimension_grayscale_DBC">[docs]</a><span class="k">def</span> <span class="nf">fractal_dimension_grayscale_DBC</span><span class="p">(</span><span class="n">Z</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Differential box counting method with implementation of appropriate box height selection.</span>
+<span class="sd">    :param Z: 2D np.array</span>
+<span class="sd">    :return: fd for a grayscale image</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Only for 2d image</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># Minimal dimension of image</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="c1"># Greatest power of 2 less than or equal to p</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+
+    <span class="c1"># Extract the exponent</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+
+    <span class="c1"># Build successive box sizes (from 2**n down to 2**1)</span>
+    <span class="n">sizes</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># get the mean and standard deviation of the image intensity to rescale r</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span>
+
+    <span class="c1"># total number of gray levels, used for computing s&#39;</span>
+    <span class="n">G</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">Z</span><span class="p">))</span>
+
+    <span class="c1"># scaled scale of each block, r=size(s)</span>
+    <span class="c1"># TODO -- when to rescale, what should a be</span>
+    <span class="c1"># when to rescale -- either always or when the pixels in the selected box don&#39;t fall in +- 1 std, so far always</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">r_prime</span> <span class="o">=</span> <span class="n">sizes</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">a</span> <span class="o">*</span> <span class="n">sigma</span><span class="p">)</span>
+
+    <span class="c1"># Actual box counting with decreasing size</span>
+    <span class="n">i_difference</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="n">sizes</span><span class="p">:</span>
+        <span class="c1"># rescale</span>
+        <span class="n">n_r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">boxcount_grayscale</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span> <span class="o">/</span> <span class="n">r_prime</span><span class="p">)</span>
+        <span class="c1"># if max==min per the box, replace the 0 result with 1</span>
+        <span class="n">n_r</span><span class="p">[</span><span class="n">n_r</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">i_difference</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n_r</span><span class="p">)</span>
+
+    <span class="c1"># contribution from all boxes</span>
+    <span class="n">N_r</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">i_difference</span><span class="p">]</span>
+
+    <span class="c1"># Fit the successive log(sizes) with log (sum)</span>
+    <span class="n">coeffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sizes</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">N_r</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="o">-</span><span class="n">coeffs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="getvoxelsize"><a class="viewcode-back" href="../../framework.html#framework.ImageFeatures.getvoxelsize">[docs]</a><span class="k">def</span> <span class="nf">getvoxelsize</span><span class="p">(</span><span class="n">folder</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">tifffile</span> <span class="k">as</span> <span class="nn">tf</span>
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">TiffFile</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span> <span class="k">as</span> <span class="n">tif</span><span class="p">:</span>
+        <span class="n">ij_metadata</span> <span class="o">=</span> <span class="n">tif</span><span class="o">.</span><span class="n">imagej_metadata</span>
+        <span class="n">num_pixels_x</span><span class="p">,</span> <span class="n">units_x</span> <span class="o">=</span> <span class="n">tif</span><span class="o">.</span><span class="n">pages</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tags</span><span class="p">[</span><span class="s1">&#39;XResolution&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+        <span class="n">xres</span> <span class="o">=</span> <span class="n">units_x</span> <span class="o">/</span> <span class="n">num_pixels_x</span>
+        <span class="n">num_pixels_y</span><span class="p">,</span> <span class="n">units_y</span> <span class="o">=</span> <span class="n">tif</span><span class="o">.</span><span class="n">pages</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tags</span><span class="p">[</span><span class="s1">&#39;YResolution&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+        <span class="n">yres</span> <span class="o">=</span> <span class="n">units_y</span> <span class="o">/</span> <span class="n">num_pixels_y</span>
+
+    <span class="k">if</span> <span class="n">ij_metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">zres</span> <span class="o">=</span> <span class="n">ij_metadata</span><span class="p">[</span><span class="s1">&#39;spacing&#39;</span><span class="p">]</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="c1">#print(&#39;Image is 2D. Using default voxel height (z = 1)&#39;)</span>
+            <span class="k">return</span> <span class="mi">1</span><span class="p">,</span><span class="n">xres</span><span class="p">,</span><span class="n">yres</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Using default voxel height (z = 1)&#39;</span><span class="p">)</span>
+        <span class="n">zres</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="n">zres</span><span class="p">,</span><span class="n">xres</span><span class="p">,</span><span class="n">yres</span></div>
+
+<div class="viewcode-block" id="getAAI"><a class="viewcode-back" href="../../framework.html#framework.ImageFeatures.getAAI">[docs]</a><span class="k">def</span> <span class="nf">getAAI</span><span class="p">(</span><span class="n">patch</span><span class="p">):</span>
+    <span class="n">aga</span>       <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="mi">255</span> <span class="o">*</span> <span class="p">(</span><span class="n">patch</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">patch</span><span class="p">)),</span><span class="n">bins</span><span class="o">=</span><span class="mi">256</span><span class="p">)</span>
+    <span class="n">local_min</span> <span class="o">=</span> <span class="n">argrelextrema</span><span class="p">(</span><span class="n">aga</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">less</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">AAI</span>       <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">aga</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">local_min</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">local_min</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span> <span class="o">*</span> <span class="n">aga</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">local_min</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">local_min</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]])</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">patch</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+    
+    <span class="k">return</span> <span class="n">AAI</span></div>
+
+
+<div class="viewcode-block" id="ImageFeatures"><a class="viewcode-back" href="../../framework.html#framework.ImageFeatures.ImageFeatures">[docs]</a><span class="k">class</span> <span class="nc">ImageFeatures</span><span class="p">:</span>
+    
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">img</span><span class="p">,</span> <span class="n">skel</span><span class="p">,</span> <span class="n">original_folder</span><span class="p">):</span>
+        <span class="c1"># Image and Binary Image</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">img</span> <span class="o">=</span> <span class="n">img</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_img</span> <span class="o">=</span> <span class="p">(</span><span class="n">img</span><span class="o">!=</span><span class="mi">0</span><span class="p">)</span><span class="o">*</span><span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">original_folder</span> <span class="o">=</span> <span class="n">original_folder</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">skel</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skel</span> <span class="o">=</span> <span class="n">skel</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">pass</span>
+            
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">spacing</span>    <span class="o">=</span> <span class="p">(</span><span class="n">getvoxelsize</span><span class="p">(</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span><span class="n">getvoxelsize</span><span class="p">(</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span><span class="n">getvoxelsize</span><span class="p">(</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">2</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">voxel_size</span> <span class="o">=</span> <span class="n">getvoxelsize</span><span class="p">(</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">getvoxelsize</span><span class="p">(</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">getvoxelsize</span><span class="p">(</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">siz</span> <span class="o">=</span> <span class="n">getvoxelsize</span><span class="p">(</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span><span class="n">getvoxelsize</span><span class="p">(</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span><span class="n">getvoxelsize</span><span class="p">(</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">spacing</span>    <span class="o">=</span> <span class="p">(</span><span class="n">siz</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">siz</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">voxel_size</span> <span class="o">=</span> <span class="n">siz</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">siz</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        
+        
+        <span class="c1"># --- Int</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_level</span>     <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">img</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">img</span><span class="p">))</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_min</span>   <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_max</span>   <span class="o">=</span> <span class="mi">256</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">imgzero</span>     <span class="o">=</span> <span class="n">img</span><span class="p">[</span><span class="n">img</span><span class="o">!=</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">hist</span><span class="p">,</span><span class="n">bin_edges</span>   <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">imgzero</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">level_max</span><span class="p">,[</span><span class="bp">self</span><span class="o">.</span><span class="n">level_min</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">level_max</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hist</span>        <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">hist</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_centers</span> <span class="o">=</span> <span class="p">(</span><span class="n">bin_edges</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">bin_edges</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">/</span> <span class="mi">2</span>
+        
+        <span class="c1"># --- GLCM</span>
+<span class="c1">#         try:</span>
+            <span class="c1">#self.glcm   = graycomatrix(img, distances=[1], angles=[0, np.pi/4, np.pi/2, 3*np.pi/4], levels=self.n_level, normed = True)</span>
+<span class="c1">#         self.glcm   = graycomatrix(self.img, distances=[1], angles=[0, np.pi/4, np.pi/2, 3*np.pi/4], levels=256, normed = True) </span>
+<span class="c1">#         matrix      = np.sum(self.glcm, axis = 3) / 4 #makes the matrix invariant as it sums all the elements for different angles</span>
+<span class="c1">#         self.matrix = np.ndarray((256,256,1,1)) #keeps it 4-dimensional</span>
+<span class="c1">#         self.matrix[:,:,:,0] = matrix</span>
+<span class="c1">#         except:</span>
+<span class="c1">#             pass</span>
+        
+        <span class="c1"># --- Freq</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># prepare filter bank kernels</span>
+            <span class="n">kernels</span>     <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">powers</span>      <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">frequencies</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.1</span><span class="p">,</span><span class="mf">0.2</span><span class="p">,</span><span class="mf">0.3</span><span class="p">,</span><span class="mf">0.4</span><span class="p">])</span> <span class="c1">#4 frequencies</span>
+            <span class="k">for</span> <span class="n">theta</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+                <span class="n">theta</span> <span class="o">=</span> <span class="n">theta</span> <span class="o">/</span> <span class="mf">4.</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="c1">#4 angles</span>
+                <span class="k">for</span> <span class="n">frequency</span> <span class="ow">in</span> <span class="n">frequencies</span><span class="p">:</span> <span class="c1">#a total of 16 filters</span>
+                    <span class="n">kernel_temp</span> <span class="o">=</span> <span class="n">gabor_kernel</span><span class="p">(</span><span class="n">frequency</span><span class="p">,</span> <span class="n">theta</span> <span class="o">=</span> <span class="n">theta</span><span class="p">)</span>
+                    <span class="n">power_img</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">power_calc</span><span class="p">(</span><span class="n">img</span><span class="p">,</span><span class="n">kernel_temp</span><span class="p">)</span>
+                    <span class="n">powers</span><span class="o">.</span><span class="n">append</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">power_img</span><span class="p">))</span>
+                    <span class="c1">#save only real kernel</span>
+                    <span class="n">kernels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">kernel_temp</span><span class="p">))</span> 
+            <span class="bp">self</span><span class="o">.</span><span class="n">powers</span>  <span class="o">=</span> <span class="n">powers</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kernels</span> <span class="o">=</span> <span class="n">kernels</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="c1"># Compute features</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calc_features</span><span class="p">()</span>
+        
+    
+
+    
+    
+    <span class="k">def</span> <span class="nf">_calc_features</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Init</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="p">{}</span>
+        
+<span class="c1">#         try:</span>
+<span class="c1">#             if len(self.bin_img.shape) == 3:</span>
+<span class="c1">#                 props    = regionprops(label_image=self.bin_img,intensity_image=self.img, spacing=np.array([0.1612500,0.1612500,8.7466670]))</span>
+<span class="c1">#         except:</span>
+        
+        <span class="n">props</span>    <span class="o">=</span> <span class="n">regionprops</span><span class="p">(</span><span class="n">label_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bin_img</span><span class="p">,</span> <span class="n">intensity_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">img</span><span class="p">,</span><span class="n">spacing</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">spacing</span><span class="p">)</span>
+        
+    
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">convimg</span> <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">convex_image</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">convimg</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;could not get convex hull&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">features</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">features</span>
+        
+        
+        <span class="c1"># --- MORPHOLOGY </span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Number of Pixels&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">num_pixels</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="c1">#Number of pixels of the region.</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Area&#39;</span><span class="p">]</span>                   <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">area</span> 
+            <span class="c1">#features[&#39;Area (micron)&#39;]          = props[0].area * self.voxel_size </span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Area convex&#39;</span><span class="p">]</span>            <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">area_convex</span> 
+            <span class="c1">#features[&#39;Area convex (micron)&#39;]   = props[0].area_convex * self.voxel_size</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Volume&#39;</span><span class="p">]</span>                 <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">area</span>
+            <span class="c1">#features[&#39;Volume (micron)&#39;]        = props[0].area * self.voxel_size </span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Volume convex&#39;</span><span class="p">]</span>          <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">area_convex</span> 
+            <span class="c1">#features[&#39;Volume convex (micron)&#39;] = props[0].area_convex * self.voxel_size</span>
+        
+        <span class="c1">#features[&#39;BB Area&#39;]             = props[0].bbox_area #Number of pixels of bounding box.</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="c1">#Perimeter of object which approximates the contour as a line through the centers of border pixels using a 4-connectivity.</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Perimeter&#39;</span><span class="p">]</span>           <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">perimeter</span> 
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">test</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bin_img</span><span class="p">,((</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">),(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">),(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">)))</span>
+            <span class="c1">#test = self.bin_img.transpose(1, 2, 0)</span>
+            <span class="n">verts</span><span class="p">,</span> <span class="n">faces</span><span class="p">,</span> <span class="n">normals</span><span class="p">,</span> <span class="n">values</span>   <span class="o">=</span> <span class="n">marching_cubes</span><span class="p">(</span><span class="n">test</span><span class="p">,</span><span class="n">level</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">peri</span>                            <span class="o">=</span> <span class="n">mesh_surface_area</span><span class="p">(</span><span class="n">verts</span><span class="p">,</span><span class="n">faces</span><span class="p">)</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Perimeter&#39;</span><span class="p">]</span>           <span class="o">=</span> <span class="n">peri</span>
+            
+            <span class="n">verts</span><span class="p">,</span> <span class="n">faces</span><span class="p">,</span> <span class="n">normals</span><span class="p">,</span> <span class="n">values</span>   <span class="o">=</span> <span class="n">marching_cubes</span><span class="p">(</span><span class="n">test</span><span class="p">,</span> <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">spacing</span><span class="o">=</span><span class="n">getvoxelsize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">original_folder</span><span class="p">))</span>
+            <span class="n">peri</span>                            <span class="o">=</span> <span class="n">mesh_surface_area</span><span class="p">(</span><span class="n">verts</span><span class="p">,</span><span class="n">faces</span><span class="p">)</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Perimeter (micron)&#39;</span><span class="p">]</span>  <span class="o">=</span> <span class="n">peri</span>
+            
+            
+        
+
+        
+        <span class="c1"># CENTROID</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Centroid&#39;</span><span class="p">]</span>              <span class="o">=</span> <span class="p">[</span><span class="nb">round</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">centroid</span><span class="p">]</span> <span class="c1">#Centroid coordinate tuple.</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Weighted Centroid&#39;</span><span class="p">]</span>     <span class="o">=</span> <span class="p">[</span><span class="nb">round</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">weighted_centroid</span><span class="p">]</span>  <span class="c1">#Centroid coordinate tuple (row, col) weighted with intensity image.</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Centroid Divergence&#39;</span><span class="p">]</span>   <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;Centroid&#39;</span><span class="p">])</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;Weighted Centroid&#39;</span><span class="p">]))</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Equivalent Diameter&#39;</span><span class="p">]</span>   <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">equivalent_diameter</span> <span class="c1">#The diameter of a circle with the same area as the region.</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Extent&#39;</span><span class="p">]</span>                <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">extent</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Major Axis Length&#39;</span><span class="p">]</span>     <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">major_axis_length</span> <span class="c1">#The length of the major axis of the ellipse that has the same normalized second central moments as the region.</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Minor Axis Length&#39;</span><span class="p">]</span>     <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">minor_axis_length</span>  <span class="c1">#The length of the minor axis of the ellipse that has the same normalized second central moments as the region.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Height&#39;</span><span class="p">]</span>                <span class="o">=</span> <span class="n">getvoxelsize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bin_img</span><span class="o">*</span><span class="mi">1</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span><span class="o">-</span><span class="nb">min</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bin_img</span><span class="o">*</span><span class="mi">1</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;XComp&#39;</span><span class="p">]</span>                 <span class="o">=</span> <span class="n">getvoxelsize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bin_img</span><span class="o">*</span><span class="mi">1</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span><span class="o">-</span><span class="nb">min</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bin_img</span><span class="o">*</span><span class="mi">1</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)[</span><span class="mi">1</span><span class="p">]))</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;YComp&#39;</span><span class="p">]</span>                 <span class="o">=</span> <span class="n">getvoxelsize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bin_img</span><span class="o">*</span><span class="mi">1</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)[</span><span class="mi">2</span><span class="p">])</span><span class="o">-</span><span class="nb">min</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bin_img</span><span class="o">*</span><span class="mi">1</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)[</span><span class="mi">2</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;XComp&#39;</span><span class="p">]</span>                 <span class="o">=</span> <span class="n">getvoxelsize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bin_img</span><span class="o">*</span><span class="mi">1</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span><span class="o">-</span><span class="nb">min</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bin_img</span><span class="o">*</span><span class="mi">1</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;YComp&#39;</span><span class="p">]</span>                 <span class="o">=</span> <span class="n">getvoxelsize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">original_folder</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bin_img</span><span class="o">*</span><span class="mi">1</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span><span class="o">-</span><span class="nb">min</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bin_img</span><span class="o">*</span><span class="mi">1</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)[</span><span class="mi">1</span><span class="p">]))</span>
+            
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Euler Number&#39;</span><span class="p">]</span>          <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">euler_number</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Eccentricity&#39;</span><span class="p">]</span>        <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">eccentricity</span> <span class="c1">#Eccentricity of the ellipse that has the same second-moments as the region. The eccentricity is the ratio of the focal distance (distance between focal points).</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Eccentricity&#39;</span><span class="p">]</span>        <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">minor_axis_length</span> <span class="o">/</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">major_axis_length</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="c1">#Circularity that specifies the roundness of objects.</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Circularity&#39;</span><span class="p">]</span>         <span class="o">=</span> <span class="p">(</span><span class="mi">4</span><span class="o">*</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;Area&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;Perimeter&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> 
+
+            <span class="c1">#Like circularity, but does not depend on perimeter/roughness.</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Roundness&#39;</span><span class="p">]</span>           <span class="o">=</span> <span class="p">(</span><span class="mi">4</span><span class="o">*</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;Area&#39;</span><span class="p">])</span><span class="o">/</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">major_axis_length</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="c1">#Circularity that specifies the roundness of objects.</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Circularity&#39;</span><span class="p">]</span>         <span class="o">=</span> <span class="p">(</span><span class="mi">4</span><span class="o">*</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;Volume&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;Perimeter&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> 
+
+            <span class="c1">#Like circularity, but does not depend on perimeter/roughness.</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Roundness&#39;</span><span class="p">]</span>           <span class="o">=</span> <span class="p">(</span><span class="mi">4</span><span class="o">*</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;Volume&#39;</span><span class="p">])</span><span class="o">/</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">major_axis_length</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Aspect Ratio&#39;</span><span class="p">]</span>       <span class="o">=</span> <span class="p">(</span><span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">major_axis_length</span><span class="p">)</span><span class="o">/</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">minor_axis_length</span> <span class="c1">#Aspect ratio.</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Orientation&#39;</span><span class="p">]</span>         <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">orientation</span> <span class="c1">#Angle between the 0th axis (rows) and the major axis of the ellipse that has the same second moments as the region, ranging from -pi/2 to pi/2 counter-clockwise.</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Orientation&#39;</span><span class="p">]</span>         <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Solidity&#39;</span><span class="p">]</span>            <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">solidity</span> <span class="c1">#Ratio of pixels in the region to pixels of the convex hull image.  </span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">imconv</span> <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">convex_image</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+            <span class="n">vertsh</span><span class="p">,</span> <span class="n">facesh</span><span class="p">,</span> <span class="n">normalsh</span><span class="p">,</span> <span class="n">valuesh</span> <span class="o">=</span> <span class="n">marching_cubes</span><span class="p">(</span><span class="n">imconv</span><span class="p">,</span> <span class="n">spacing</span><span class="o">=</span><span class="n">getvoxelsize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">original_folder</span><span class="p">))</span>
+            <span class="n">perihull</span> <span class="o">=</span> <span class="n">mesh_surface_area</span><span class="p">(</span><span class="n">vertsh</span><span class="p">,</span><span class="n">facesh</span><span class="p">)</span>
+            
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Roughness&#39;</span><span class="p">]</span>           <span class="o">=</span> <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Perimeter&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">perihull</span> <span class="c1"># get convex image of roi and compute perimeter as Ratio of perimeter of region to perimeter of the convex hull image.</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Roughness&#39;</span><span class="p">]</span>           <span class="o">=</span> <span class="mi">0</span>
+            
+<span class="c1">#         try:</span>
+<span class="c1">#             features[&#39;Hu Moment #1&#39;]        = props[0].moments_hu[0] #tuple - Hu moments (translation, scale and rotation invariant) of intensity image.</span>
+<span class="c1">#             features[&#39;Hu Moment #2&#39;]        = props[0].moments_hu[1] </span>
+<span class="c1">#             features[&#39;Hu Moment #3&#39;]        = props[0].moments_hu[2]</span>
+
+<span class="c1">#             features[&#39;Weighted Hu Moment #1&#39;] = props[0].moments_weighted_hu[0]  </span>
+<span class="c1">#             features[&#39;Weighted Hu Moment #2&#39;] = props[0].moments_weighted_hu[1] </span>
+<span class="c1">#             features[&#39;Weighted Hu Moment #3&#39;] = props[0].moments_weighted_hu[2] </span>
+<span class="c1">#         except:</span>
+<span class="c1">#             features[&#39;Hu Moment #1&#39;]        = 0</span>
+<span class="c1">#             features[&#39;Hu Moment #2&#39;]        = 0 </span>
+<span class="c1">#             features[&#39;Hu Moment #3&#39;]        = 0</span>
+<span class="c1">#             features[&#39;Weighted Hu Moment #1&#39;] = 0  </span>
+<span class="c1">#             features[&#39;Weighted Hu Moment #2&#39;] = 0 </span>
+<span class="c1">#             features[&#39;Weighted Hu Moment #3&#39;] = 0</span>
+ 
+
+        <span class="c1">#features[&#39;Zernike Moments&#39;]    = zernike_moments(self.img,self.img[0].shape[0]/2)   # Zernike Moments of Region [diam = self.img[0].shape[0]/2, maxradius = diam/2]</span>
+<span class="c1">#         try:</span>
+<span class="c1">#             features[&#39;Feret Diameter Max&#39;]  = props[0].feret_diameter_max</span>
+<span class="c1">#         except:</span>
+<span class="c1">#             features[&#39;Feret Diameter Max&#39;]  = 0</span>
+<span class="c1">#         try:</span>
+<span class="c1">#             features[&#39;Crofton Perimeter&#39;]   = props[0].perimeter_crofton</span>
+<span class="c1">#         except:</span>
+<span class="c1">#             features[&#39;Crofton Perimeter&#39;]   = 0</span>
+        
+        <span class="c1"># --- INTENSITY</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Mean Intensity&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">imgzero</span><span class="p">)</span> <span class="c1">#mean intensity of image</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Std&#39;</span><span class="p">]</span>            <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">imgzero</span><span class="p">)</span> <span class="c1">#standard deviation</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Variance&#39;</span><span class="p">]</span>       <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">imgzero</span><span class="p">)</span> <span class="c1">#variance</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Skewness&#39;</span><span class="p">]</span>       <span class="o">=</span> <span class="n">skew</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">imgzero</span><span class="p">)</span> <span class="c1">#skewness of distribution</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Kurtosis&#39;</span><span class="p">]</span>       <span class="o">=</span> <span class="n">kurtosis</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">imgzero</span><span class="p">)</span> <span class="c1">#kurtosis of distribution</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Contrast&#39;</span><span class="p">]</span>       <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hist</span><span class="p">)</span> <span class="c1">#contrast can be defined as std of histogram of intensity</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Max Intensity&#39;</span><span class="p">]</span>  <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">max_intensity</span> <span class="c1">#Value with the greatest intensity in the region.</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Min Intensity&#39;</span><span class="p">]</span>  <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">min_intensity</span> <span class="c1">#Value with the greatest intensity in the region.</span>
+        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Entropy&#39;</span><span class="p">]</span>        <span class="o">=</span> <span class="n">shannon_entropy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">img</span><span class="p">,</span> <span class="n">base</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="c1">#The Shannon entropy is defined as S = -sum(pk * log(pk)), where pk are frequency/probability of pixels of value k.</span>
+<span class="c1">#         features[&#39;Inertia Tensor Highest Eigenvalue&#39;] = props[0].inertia_tensor_eigvals[0]</span>
+<span class="c1">#         features[&#39;Inertia Tensor Lowest Eigenvalue&#39;] = props[0].inertia_tensor_eigvals[1]</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;AAI&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">getAAI</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skel</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">pass</span>
+    
+    
+    
+    
+<span class="c1">#         # --- GLCM</span>
+<span class="c1">#         try:</span>
+<span class="c1">#             unif   = []</span>
+<span class="c1">#             ent    = []</span>
+<span class="c1">#             matrix = self.matrix[:,:,0,0]</span>
+<span class="c1">#             for i in np.arange(self.glcm.shape[3]):</span>
+<span class="c1">#                 mat          = self.glcm[:,:,0,i]</span>
+<span class="c1">#                 feature_unif = (mat ** 2).sum()</span>
+<span class="c1">#                 unif.append(feature_unif)</span>
+<span class="c1">#                 feature_ent  = shannon_entropy(mat)</span>
+<span class="c1">#                 ent.append(feature_ent)   </span>
+
+<span class="c1">#             features[&#39;Uniformity&#39;]              = list(unif) #uniformity for each matrix/angle</span>
+<span class="c1">#             features[&#39;Invariant Uniformity&#39;]    = (matrix ** 2).sum()</span>
+<span class="c1">#             features[&#39;GLCM Entropy&#39;]            = list(ent) #same, but for entropy</span>
+<span class="c1">#             features[&#39;GLCM Invariant Entropy&#39;]  = shannon_entropy(matrix)</span>
+<span class="c1">#             features[&#39;Correlation&#39;]             = graycoprops(self.glcm, &#39;correlation&#39;)[0]</span>
+<span class="c1">#             features[&#39;Invariant Correlation&#39;]   = float(graycoprops(self.matrix, &#39;correlation&#39;)[0][0])</span>
+<span class="c1">#             features[&#39;Dissimilarity&#39;]           = graycoprops(self.glcm, &#39;dissimilarity&#39;)[0]</span>
+<span class="c1">#             features[&#39;Invariant Dissimilarity&#39;] = float(graycoprops(self.matrix, &#39;dissimilarity&#39;)[0][0])                  </span>
+<span class="c1">#             features[&#39;Contrast&#39;]                = graycoprops(self.glcm, &#39;contrast&#39;)[0]</span>
+<span class="c1">#             features[&#39;Invariant Contrast&#39;]      = float(graycoprops(self.matrix, &#39;contrast&#39;)[0][0])</span>
+<span class="c1">#             features[&#39;Homogeneity&#39;]             = graycoprops(self.glcm, &#39;homogeneity&#39;)[0]</span>
+<span class="c1">#             features[&#39;Invariant Homogeneity&#39;]   = float(graycoprops(self.matrix, &#39;homogeneity&#39;)[0][0])</span>
+<span class="c1">#             features[&#39;Energy&#39;]                  = graycoprops(self.glcm, &#39;energy&#39;)[0]</span>
+<span class="c1">#             features[&#39;Invariant Energy&#39;]        = float(graycoprops(self.matrix, &#39;energy&#39;)[0][0])</span>
+<span class="c1">#         except:</span>
+<span class="c1">#             pass</span>
+
+        
+        
+<span class="c1">#         # --- Freq</span>
+<span class="c1">#         # Gabor</span>
+<span class="c1">#         try:</span>
+<span class="c1">#             features[&#39;Mean Gabor Power&#39;] = mean(self.powers)</span>
+
+<span class="c1">#             f_var,f_mean,f_energy,f_ent    = [],[],[],[]</span>
+<span class="c1">#             for k, kernel in enumerate(self.kernels):</span>
+<span class="c1">#                 filtered = ndi.convolve(self.img, kernel, mode=&#39;wrap&#39;)</span>
+<span class="c1">#                 f_mean.append(np.mean(filtered))</span>
+<span class="c1">#                 f_var.append(np.var(filtered))</span>
+<span class="c1">#                 f_energy.append(np.sum(np.power(filtered.ravel(),2))/len(filtered.ravel()))</span>
+<span class="c1">#                 f_ent.append(shannon_entropy(filtered))</span>
+
+<span class="c1">#             features[&#39;Gabor Variance&#39;] = mean(f_var)</span>
+<span class="c1">#             features[&#39;Gabor Mean&#39;]     = mean(f_mean)</span>
+<span class="c1">#             features[&#39;Gabor Energy&#39;]   = mean(f_energy)</span>
+<span class="c1">#             features[&#39;Gabor Entropy&#39;]  = mean(f_ent)</span>
+
+<span class="c1">#             # --- FFT</span>
+<span class="c1">#             f                  = np.fft.fft2(self.img)</span>
+<span class="c1">#             fshift             = np.fft.fftshift(f)</span>
+<span class="c1">#             magnitude_spectrum = 20*np.log(np.abs(fshift))</span>
+
+<span class="c1">#             features[&#39;Mean Spectral Magnitude&#39;] = np.mean(magnitude_spectrum) #in dB</span>
+
+<span class="c1">#             # --- Welch</span>
+<span class="c1">#             f_psd, Pxx = signal.welch(self.img)</span>
+<span class="c1">#             sum_fp     = np.multiply(f_psd, Pxx)</span>
+<span class="c1">#             sum_int    = np.sum(Pxx)</span>
+<span class="c1">#             mean_pxx   = np.sum(sum_fp)/sum_int</span>
+
+<span class="c1">#             features[&#39;Mean Spectral Power&#39;] = mean_pxx</span>
+
+<span class="c1">#             for k in features.keys():</span>
+<span class="c1">#                 try:</span>
+<span class="c1">#                     features[k] = round(features[k],3)</span>
+<span class="c1">#                 except:</span>
+<span class="c1">#                     pass</span>
+<span class="c1">#         except:</span>
+<span class="c1">#             pass</span>
+        
+        
+<span class="c1">#         # Fractal Dimension</span>
+<span class="c1">#         try:</span>
+<span class="c1">#             b_n,d_n = fractal_dimension_grayscale(self.img)</span>
+<span class="c1"># #             features[&#39;DCF:Fractal Dim Grayscale&#39;] = </span>
+<span class="c1">#             fractal_values_n_b = [round(b_n)]</span>
+<span class="c1">#             features[&#39;Fractal Dim B Skeleton&#39;] = fractal_values_n_b</span>
+<span class="c1">#             fractal_values_n_d = [round(d_n)] </span>
+<span class="c1">#             features[&#39;Fractal Dim D Skeleton&#39;] = fractal_values_n_d</span>
+<span class="c1">#         except:</span>
+<span class="c1">#             pass</span>
+        
+<span class="c1">#         try:</span>
+<span class="c1">#             fd_nuc  = [fractal_dimension(self.img)]</span>
+<span class="c1">#             features[&#39;Fractal Dim Skeleton&#39;] = fd_nuc</span>
+<span class="c1">#         except:</span>
+<span class="c1">#             pass</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">if</span> <span class="mi">100</span><span class="o">*</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;Volume convex&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Volume&#39;</span><span class="p">])</span><span class="o">/</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;Volume&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">200</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Volume convex exceeded 200%&#39;</span><span class="p">)</span>
+                <span class="n">features</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">return</span> <span class="n">features</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">if</span> <span class="mi">100</span><span class="o">*</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;Area convex&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">features</span><span class="p">[</span><span class="s1">&#39;Area&#39;</span><span class="p">])</span><span class="o">/</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;Area&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">200</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Area convex exceeded 200%&#39;</span><span class="p">)</span>
+                <span class="n">features</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">return</span> <span class="n">features</span>
+            
+        
+        
+        
+        <span class="k">return</span> <span class="n">features</span>
+        
+    
+<div class="viewcode-block" id="ImageFeatures.power_calc"><a class="viewcode-back" href="../../framework.html#framework.ImageFeatures.ImageFeatures.power_calc">[docs]</a>    <span class="k">def</span> <span class="nf">power_calc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">image</span><span class="p">,</span><span class="n">kernel</span><span class="p">):</span>
+        <span class="c1"># Normalize images for better comparison.</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="p">(</span><span class="n">image</span> <span class="o">-</span> <span class="n">image</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span> <span class="o">/</span> <span class="n">image</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>
+        <span class="c1">#convolves images with filter</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">ndi</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">kernel</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;wrap&#39;</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">ndi</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">imag</span><span class="p">(</span><span class="n">kernel</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;wrap&#39;</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span></div>
+    
+
+
+    
+<div class="viewcode-block" id="ImageFeatures.print_features"><a class="viewcode-back" href="../../framework.html#framework.ImageFeatures.ImageFeatures.print_features">[docs]</a>    <span class="k">def</span> <span class="nf">print_features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">print_values</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="n">feature_labels</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">feature_values</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">print_values</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="n">key</span><span class="p">]))</span>
+            <span class="n">feature_labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="n">feature_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+            
+        <span class="k">return</span> <span class="n">feature_labels</span><span class="p">,</span> <span class="n">feature_values</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Diogo Fróis Vieira.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

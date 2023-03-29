@@ -268,7 +268,7 @@ def getvoxelsize(folder):
         try:
             zres = ij_metadata['spacing']
         except:
-            print('Image is 2D. Using default voxel height (z = 1)')
+            #print('Image is 2D. Using default voxel height (z = 1)')
             return 1,xres,yres
     else:
         print('Using default voxel height (z = 1)')
@@ -276,17 +276,28 @@ def getvoxelsize(folder):
 
     return zres,xres,yres
 
-
+def getAAI(patch):
+    aga       = np.histogram(255 * (patch/np.max(patch)),bins=256)
+    local_min = argrelextrema(aga[0], np.less)[0]
+    AAI       = np.sum(aga[0][local_min[0]:local_min[-1]] * aga[1][local_min[0]:local_min[-1]]) / len(np.where(patch != 0)[0])
+    
+    return AAI
 
 
 class ImageFeatures:
     
-    def __init__(self, img, original_folder):
+    def __init__(self, img, skel, original_folder):
         # Image and Binary Image
         self.img = img
         self.bin_img = (img!=0)*1
         self.original_folder = original_folder
         self.dim = len(img.shape)
+        try:
+            if skel.all() != None:
+                self.skel = skel
+        except:
+            pass
+            
         if self.dim == 3:
             self.spacing    = (getvoxelsize(original_folder)[0],getvoxelsize(original_folder)[1],getvoxelsize(original_folder)[2])
             self.voxel_size = getvoxelsize(original_folder)[0] * getvoxelsize(original_folder)[1] * getvoxelsize(original_folder)[2]
@@ -492,6 +503,14 @@ class ImageFeatures:
 #         features['Inertia Tensor Highest Eigenvalue'] = props[0].inertia_tensor_eigvals[0]
 #         features['Inertia Tensor Lowest Eigenvalue'] = props[0].inertia_tensor_eigvals[1]
         
+        try:
+            features['AAI'] = getAAI(self.skel)
+        except:
+            pass
+    
+    
+    
+    
 #         # --- GLCM
 #         try:
 #             unif   = []

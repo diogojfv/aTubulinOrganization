@@ -105,7 +105,7 @@ def line_segment_features(features,original_img,img_index,mask,patch,xy,centroid
     flagAlpha, flagDtC, flagTri, flagLL, flagTheta, flagAG, flagStdAD, flagLLD, flagStdLLD, flagPAD, flagMCM, flagTAD = False,False,False,False,False,False,False,False,False,False,False,False
     
     # Features
-    features1D,features2D = [],[]
+    LSFs = []
     
     # Get offset
     x_ = xy[0]
@@ -130,7 +130,7 @@ def line_segment_features(features,original_img,img_index,mask,patch,xy,centroid
     # Number of Lines
     if 'LSF1D:Number of Lines' in features:
         N = len(lines)
-        features1D += [('LSF1D:Number of Lines',N)]
+        LSFs += [('LSF1D:Number of Lines',N)]
     
     # Distance matrix features
     median_points = [((line[0][0] + line[1][0])/2,(line[0][1] + line[1][1])/2) for line in lines]
@@ -140,11 +140,11 @@ def line_segment_features(features,original_img,img_index,mask,patch,xy,centroid
     # Intracluster metrics
     if 'LSF1D:Complete Diameter Distance' in features:
         max_d          = np.max(d)
-        features1D    += [('LSF1D:Complete Diameter Distance',max_d)]
+        LSFs    += [('LSF1D:Complete Diameter Distance',max_d)]
     
     if 'LSF1D:Average Diameter Distance' in features:
         avg_diam_dist  = np.sum(d_0) / (len(lines)*(len(lines) - 1))
-        features1D    += [('LSF1D:Average Diameter Distance',avg_diam_dist)]
+        LSFs    += [('LSF1D:Average Diameter Distance',avg_diam_dist)]
     
     
     center         = (np.mean(np.array(median_points)[:,0]), np.mean(np.array(median_points)[:,1]))
@@ -330,52 +330,52 @@ def line_segment_features(features,original_img,img_index,mask,patch,xy,centroid
         
     # SAVE FEATURES
     if flagAlpha == True:
-        features2D += [('LSF2D:Angles',angles)]
+        LSFs += [('LSF2D:Angles',angles)]
 
     if flagDtC   == True:
-        features2D += [('LSF2D:Distances to Centroid',dist_med)]
+        LSFs += [('LSF2D:Distances to Centroid',dist_med)]
 
     if flagTri    == True:
-        features2D += [('LSF2D:Triangle Areas',triangleA)]
+        LSFs += [('LSF2D:Triangle Areas',triangleA)]
 
     if flagLL     == True:
-        features2D += [('LSF2D:Line Lengths',line_size)]
+        LSFs += [('LSF2D:Line Lengths',line_size)]
 
     if flagTheta  == True:
-        features2D += [('LSF2D:Theta',thetas)]
+        LSFs += [('LSF2D:Theta',thetas)]
 
     if flagStdAD  == True:
-        features2D += [('LSF2D:Std. Angle Difference',std_locals)]
+        LSFs += [('LSF2D:Std. Angle Difference',std_locals)]
 
     if flagLLD    == True:
-        features2D += [('LSF2D:Local Line Distance',prox)]
+        LSFs += [('LSF2D:Local Line Distance',prox)]
 
     if flagStdLLD == True:
-        features2D += [('LSF2D:Std. Local Line Distance',std_dists)]
+        LSFs += [('LSF2D:Std. Local Line Distance',std_dists)]
 
     if flagPAD    == True:
-        features2D += [('LSF2D:PAD',PADs)]
+        LSFs += [('LSF2D:PAD',PADs)]
     
     if flagAG     == True:
-        features2D += [('LSF2D:Angle Difference',close_angle)]
+        LSFs += [('LSF2D:Angle Difference',close_angle)]
 
     
     # OOP, HI, Main Vector Magnitude, TAD
     if 'LSF1D:OOP' in features:
         oop = OOP(thetas)
-        features1D += [('LSF1D:OOP',oop)]
+        LSFs += [('LSF1D:OOP',oop)]
     
     if 'LSF1D:HI' in features:
         hi  = HI(thetas)
-        features1D += [('LSF1D:HI',hi)]
+        LSFs += [('LSF1D:HI',hi)]
         
     if flagMCM == True:
         mcm = np.linalg.norm(prev_v)
-        features1D += [('LSF1D:MCM',mcm)]
+        LSFs += [('LSF1D:MCM',mcm)]
         
     if 'LSF1D:TAD' in features:
         tad = np.sqrt(sum((np.array(mean_angles) - np.mean(thetas))**2) / N)
-        features1D += [('LSF1D:TAD',tad)]
+        LSFs += [('LSF1D:TAD',tad)]
     
     # RADIAL SCORE
     if 'LSF1D:Radial Score' in features:
@@ -383,106 +383,117 @@ def line_segment_features(features,original_img,img_index,mask,patch,xy,centroid
         mat_scores   = radialscore(lines,gridpoints,x_,y_)
         radialSC     = round(np.max(mat_scores),3)
         radialSC_pos = [np.argwhere(mat_scores == np.max(mat_scores))[0]]
-        features2D  += [('LSF2D:Radial Pos',radialSC_pos)]
-        features1D  += [('LSF1D:Radial Score',radialSC)]
+        LSFs  += [('LSF2D:Radial Pos',radialSC_pos)]
+        LSFs  += [('LSF1D:Radial Score',radialSC)]
     
 
                                                                                          
-    return lines, median_points, cytocenter, features2D, features1D
+    return lines, median_points, cytocenter, LSFs
 
 
 def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features):
+    """
     # rowROI - dataframe with specific ROI corresponding to a cell
     # data   - data with any key:
                   # - RGB
                   # - CYTO_DECONV with algorithm CYTO_DECONV
                   # - NUCL_DECONV with algorithm NUCL_PRE
                   # - 
+    """
                     
     # Useful variables:
-    img_id = rowROI['Index']
-    mask   = rowROI['ROImask']
-    name   = rowROI['Name']
-    label  = label_image(img_id)
+    img_id  = rowROI['Index']
+    name    = rowROI['Name']
+    label   = label_image(img_id)
     
-    # R and G channel of the cytoskeleton
-    try:
-        global orig_cysk
-        tmp        = copy.deepcopy(data['RGB']['Image'][img_id])
-        tmp[:,:,0] = 0
-        orig_cysk  = cv2.cvtColor(tmp,cv2.COLOR_RGB2GRAY)
-    except:
-        pass
+    # 1040 x 1388
+    mask    = rowROI['ROImask']
     
-    # Skeleton patch, for Hough Analysis
-    global x_,y_,patch,aux_
-    aux_    = mask * (data['CYTO_PRE']['Skeleton'][img_id] * 1)
-    #x_,y_   = np.where(aux_ != 0) #x_,y_   = np.where((mask*1) != 0)
-    x_,y_   = np.where((mask*1) != 0)
-    patch   = aux_[min(x_):max(x_),min(y_):max(y_)]
-    
-    # Deconvoluted cytoskeleton patch 
-    global x_f,y_f,patch_f,aux_f
     if algorithm_cyto == 'deconvoluted':
-        aux_f   = mask * (data['CYTO_DECONV']['Image'][img_id] / np.max(data['CYTO_DECONV']['Image'][img_id]))
-#     if algorithm == 'original':
-#         aux_f   = mask * (orig_cysk / np.max(orig_cysk))
-    x_f,y_f = np.where(aux_f != 0)
-    patch_f = aux_f[min(x_f):max(x_f),min(y_f):max(y_f)]
-    patch_f_norm = patch_f / np.max(aux_f)
+        cdeconv = data['CYTO_DECONV']['Image'][img_id]
+        ndeconv = data['NUCL_DECONV']['Image'][img_id]
+        
+        cyto        = mask * cdeconv
+        cyto_norm   = mask * (cdeconv / np.max(cdeconv)) / np.max(cyto) #aux_f
+        ndeconv         = mask * ndeconv
+        mndeconv_norm   = mask * (ndeconv / np.max(ndeconv)) / np.max(ndeconv)
+    if algorithm_cyto == 'rgb':
+        rgb     = data['RGB']['Image'][img_id]
+        rgb[:,:,0] = 0
+        rgb[:,:,1] = 0
+        cyto  = cv2.cvtColor(rgb,cv2.COLOR_RGB2GRAY) #aux_f
+        cyto_norm = mask * (cyto / np.max(cyto))
+        
+         
+    esqueleto       = data['CYTO_PRE']['Skeleton'][img_id] * 1
+    mesqueleto      = mask * esqueleto                              # aux_
+    
+    if algorithm_cyto == 'deconvoluted':
+        mesqueleto_int  = mesqueleto * cdeconv
+        mesqueleto_norm = mesqueleto * (cdeconv / np.max(cdeconv)) / np.max(cyto)
+    if algorithm_cyto == 'rgb':
+        mesqueleto_int  = mesqueleto * orig_cysk
+        mesqueleto_norm = mesqueleto * orig_cysk / np.max(orig_cysk) 
+        
+        
+    # SKELETON PATCH
+    global x_,y_,patch
+    x_,y_   = np.where(mesqueleto != 0) #x_,y_   = np.where((mask*1) != 0) QUAL??
+    patch   = mesqueleto[min(x_):max(x_),min(y_):max(y_)]
+    
+    # DECONVOLUTED CYTOSKELETON PATCH
+    global x_f,y_f,patch_f,aux_f      #  = 
+    x_f,y_f = np.where(cyto_norm != 0)
+    patch_f_norm = cyto_norm[min(x_f):max(x_f),min(y_f):max(y_f)]
+    #patch_f_norm = patch_f / np.max(patch_f)
     
     # GET and PLOT centroid
     centroid_id,centroid = ROI_centroid(data,img_id,[x_,y_])
      
     # Deconvoluted nuclei patch
     if algorithm_cyto == 'deconvoluted':
-        aux_n = np.zeros_like(data['CYTO_DECONV']['Image'][img_id])
+        aux_n = np.zeros_like(ndeconv)
         rownuc = data['NUCL_PRE'].loc[centroid_id]
         
         #a = list(zip(rownuc['Nucleus Mask'][0],rownuc['Nucleus Mask'][1]))
         aux_n[rownuc['Nucleus Mask'][0],rownuc['Nucleus Mask'][1]] = 1
         
-        aux_n_ = aux_n * data['NUCL_DECONV']['Image'][img_id] / np.max(data['NUCL_DECONV']['Image'][img_id])
-#         aux_n_    = mask * ( / np.max(NucleiDeconvDF['Image'][text_img[1]]))
+        aux_n_ = aux_n * ndeconv / np.max(ndeconv)
+        aux_n_ = aux_n_ / np.max(aux_n_)
 
 
-    try:
-        contourr = data['NUCL_PRE'].loc[centroid_id]['Contour'] 
-        cr       = contourr.reshape((contourr.shape[0],contourr.shape[2]))
-    except:
-        contourr = data['NUCL_PRE'].loc[centroid_id]['Contour'][0]
-        cr       = contourr.reshape((contourr.shape[0],contourr.shape[2]))
+        try:
+            contourr = data['NUCL_PRE'].loc[centroid_id]['Contour'] 
+            cr       = contourr.reshape((contourr.shape[0],contourr.shape[2]))
+        except:
+            contourr = data['NUCL_PRE'].loc[centroid_id]['Contour'][0]
+            cr       = contourr.reshape((contourr.shape[0],contourr.shape[2]))
+        
 #     patch_n  = aux_n[min(cr[:,1]):max(cr[:,1]),min(cr[:,0]):max(cr[:,0])]
 #     patch_n_norm = patch_n / np.max(aux_n)
-    patch_n = aux_n_[min(rownuc['Nucleus Mask'][0]):max(rownuc['Nucleus Mask'][0]),min(rownuc['Nucleus Mask'][1]):max(rownuc['Nucleus Mask'][1])]
-    patch_n_norm = patch_n_norm = patch_n / np.max(aux_n)
+    patch_n_norm = aux_n_[min(rownuc['Nucleus Mask'][0]):max(rownuc['Nucleus Mask'][0]),min(rownuc['Nucleus Mask'][1]):max(rownuc['Nucleus Mask'][1])]
+#     patch_n_norm = patch_n_norm = patch_n / np.max(aux_n)
     
-#     # PROCESSING: Line Segment Analysis
-#     global lines, median_points, features2D, features1D
-    lines, median_points, cytocenter, LSF2D, LSF1D = line_segment_features(features,aux_,img_id,mask,patch,(x_,y_),centroid,False)
+#     # PROCESSING: LINE SEGMENT ANALYSIS
+    lines, median_points, cytocenter, LSFs = line_segment_features(features,mesqueleto,img_id,mask,patch,(x_,y_),centroid,False)
     
 
-#     # TEXTURAL ANALYSIS
-    skel_w_int_full = aux_ * aux_f   
-    skel_w_int = skel_w_int_full[min(x_):max(x_),min(y_):max(y_)]
-    AAI = getAAI(skel_w_int)
-    
     # PROCESSING: **CYTOSKELETONS**
-    feats_all                    = ImageFeatures((patch_f_norm *255).astype(np.uint8),data['CYTO_DECONV'].loc[img_id]['Path'])
+    feats_all                    = ImageFeatures((patch_f_norm *255).astype(np.uint8),mesqueleto_norm[min(x_):max(x_),min(y_):max(y_)],data['CYTO_DECONV'].loc[img_id]['Path'])
     feats_labels_, feats_values_ = feats_all.print_features(print_values = False)
     feats_labels_, feats_values_ = remove_not1D(feats_labels_,feats_values_)
     feats_labels_                = ['DCF:' + ftf for ftf in feats_labels_]
  
     # PROCESSING: **NUCLEI**
-    feats_all_n                      = ImageFeatures((patch_n_norm *255).astype(np.uint8),data['NUCL_DECONV'].loc[img_id]['Path'])
+    feats_all_n                      = ImageFeatures((patch_n_norm *255).astype(np.uint8),None,data['NUCL_DECONV'].loc[img_id]['Path'])
     feats_labels_n_, feats_values_n_ = feats_all_n.print_features(print_values = False)
     feats_labels_n_, feats_values_n_ = remove_not1D(feats_labels_n_,feats_values_n_)
     feats_labels_n_                  = ['DNF:' + ftn for ftn in feats_labels_n_]
     
 #     # PROCESSING: Graph Analysis
     global int_ske, graph, graph_res, shollhist, cncd, pxlcount
-    int_ske         = ((aux_ * 1) * aux_f) / np.max(aux_f) #1040x1388
-#     graph,graph_res,shollhist = graphAnalysis(int_ske,[x_,y_],[aux_n / np.max(patch_n),centroid,cr],mask,plot)
+    #int_ske         = (mesqueleto * aux_f) / np.max(aux_f) 
+    graph,graph_res,shollhist = cyto_graph_features(mesqueleto_norm,features,[x_,y_],[aux_n_,centroid,cr],mask,False)
     
 #     # PROCESSING: Others
 #     cncd = Others(aux_f,aux_n,lines)
@@ -490,19 +501,13 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     # Add to DataFrame
     global ResultsDF,new
     if 'ResultsDF' not in globals():
-            ResultsDF = pd.DataFrame(columns = ['Name'] + ['Img Index'] + ['Label'] + ['Mask'] + ['Patches'] + ['Nucleus Contour'] + ['Nucleus Centroid'] + ['Cytoskeleton Centroid'] + ['Lines'] + [xç for xç,yç in LSF2D] + [xe for xe,ye in LSF1D] + ['DCF:AAI'] + list(feats_labels_n_))
-    new          = pd.Series([name] + [img_id] + [label] + [mask] + [[patch,patch_f,patch_n,aux_* orig_cysk,x_,y_]] + [cr] + [centroid] + [cytocenter] + [lines] +  [yç for xç,yç in LSF2D] + [ye for xe,ye in LSF1D] + [AAI] + feats_values_n_,index=ResultsDF.columns)
-#     ImageLinesDF = ImageLinesDF.append(new,ignore_index=True)
+        ResultsDF = pd.DataFrame(columns = ['Name'] + ['Img Index'] + ['Label'] + ['Mask'] + ['Patches'] + ['Nucleus Contour'] + ['Nucleus Centroid'] + ['Cytoskeleton Centroid'] + ['Lines'] + [xç for xç,yç in LSFs] + list(feats_labels_n_) + [xg for xg,yg in graph_res])
+        
+    new       = pd.Series([name] + [img_id] + [label] + [mask] + [[patch,patch_f_norm,patch_n_norm,mesqueleto,x_,y_]] + [cr] + [centroid] + [cytocenter] + [lines] +  [yç for xç,yç in LSFs] + feats_values_n_ + [yg for xg,yg in graph_res], index=ResultsDF.columns)
+
     ResultsDF = pd.concat([ResultsDF,new.to_frame().T],axis=0,ignore_index=True)
          
     
-#     # Add to DataFrame
-#     global ImageLinesDF,new
-#     if 'ResultsDF' not in globals():
-#             ImageLinesDF = pd.DataFrame(columns = ['Name'] + ['Img Index'] + ['Label'] + ['Mask'] + ['Patches'] + ['Nucleus Centroid'] + ['Cytoskeleton Centroid'] + ['Nucleus Contour'] + ['Centrossome'] + ['Lines'] + ['Graph'] + ['Sholl Hist'] + [xç for xç,yç in features2D] + [xe for xe,ye in features1D] + ['DCF:AAI'] + ['DCF:Fractal Dim B Skeleton'] + ['DCF:Fractal Dim D Skeleton'] + ['DCF:Fractal Dim Skeleton'] + ['DCF:Fractal Dim Grayscale'] + ['DNF:Nuclei Grayscale Fractal Dim '] + list(feats_labels_n_) + [graph_ft for graph_ft in list(zip(*graph_res))[0]] + [x for x,y in cncd])
-#     new          = pd.Series([DeconvDF['Name'][text_img[1]]] + [text_img[1]] + [DeconvDF['Label'][text_img[1]]] + [mask] + [[patch,patch_f,patch_n,aux_* orig_cysk,x_,y_]] + [centroid] + [cytocenter] + [cr] + [radialSC_pos] + [lines] + [[graph]] + [shollhist] + [yç for xç,yç in features2D] + [ye for xe,ye in features1D] + [AAI] + fractal_values_b + fractal_values_d + fdske + fd_deconv + fd_nuc + feats_values_n_ + [graph_ft for graph_ft in list(zip(*graph_res))[1]] + [y for x,y in cncd],index=ImageLinesDF.columns)
-#     ImageLinesDF = ImageLinesDF.append(new,ignore_index=True)
-        
     return ResultsDF
 
 
@@ -609,84 +614,68 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
 
 
 
-def branch(sk,ske,cyto_info,nuclei_info,plot):
+
+
+def cyto_graph_features(sk,features,infocyto,infonucl,mask,plot): #old graphanalysis
+    global skeleton
+    """
+    # infocyto = [x_,y_]
+    # infonucl = [NucleiDeconvDF['Image'][row['Index']],centroid,cr] 
+    #graph = sknw.build_sknw(skeleton,multi=False,**[{'iso':False}])
     
-    # Feature Names and Values
-    res = []
+    """
+    # Convert skeleton to skeleton object
+    ske = Skeleton((sk).astype(float)) 
     
     # Get branch data:
     branch_data = summarize(ske,find_main_branch=False)
     
-    # Number of paths (1D):
-    #global Npaths
-    Npaths = ske.n_paths
-    res += [('SKNW:Number of Branches',Npaths)]
+    # Create feature list
+    CNFs = []
     
-    # Branch distance, Mean/Std Pixel Values, Eucl distance
+    
+    # FEATURE: Number of paths (1D):
+    if 'SKNW1D:Number of Branches' in features:
+        Npaths = ske.n_paths
+        CNFs += [('SKNW1D:Number of Branches',Npaths)]
+    
+    # FEATURE: Branch distance, Mean/Std Pixel Values, Eucl distance
     cols = ['branch-distance','mean-pixel-value','stdev-pixel-value','euclidean-distance']
     for col in cols:
         names    = tools.signal_stats(list(branch_data[col]))._names
         features = np.array(list(tools.signal_stats(list(branch_data[col]))))
-        res += list(zip(['SKNW:' + str(col) +str(' ') + str(f) for f in names],features))
+        res += list(zip(['SKNW1D:' + str(col) +str(' ') + str(f) for f in names],features))
+    
     
     # Path grouping
-    #global br_type_lens
     br_type_nams = ['Endpoint-to-endpoint (isolated branch)','Junction-to-endpoints','Junction-to-junctions','Isolated cycles']
     
-    
     for typ in np.unique(branch_data['branch-type']):
-        data = branch_data[branch_data['branch-type'] == typ]
+        br_type_data = branch_data[branch_data['branch-type'] == typ]
         
-        res += [(str('SKNW:Number of ') + str(br_type_nams[typ]),len(data)),
-                (str('SKNW:Ratio of ') + str(br_type_nams[typ]),len(data)/Npaths)]
+        CNFs += [(str('SKNW1D:Number of ') + str(br_type_nams[typ]),len(br_type_data)),
+                (str('SKNW1D:Ratio of ') + str(br_type_nams[typ]),len(br_type_data)/Npaths)]
         
         for col_ in cols:
-            res += [(str('SKNW:Mean of ') + str(br_type_nams[typ]) + str(' ') + str(col_),np.mean(data[col_])),
-                    (str('SKNW:Std of ') + str(br_type_nams[typ]) + str(' ') + str(col_),np.std(data[col_]))]
+            CNFs += [(str('SKNW1D:Mean of ') + str(br_type_nams[typ]) + str(' ') + str(col_),np.mean(br_type_data[col_])),
+                    (str('SKNW1D:Std of ') + str(br_type_nams[typ]) + str(' ') + str(col_),np.std(br_type_data[col_]))]
             
-    if 3 not in np.unique(branch_data['branch-type']): #isolated cycles
+    # Handle Isolated cycles
+    if 3 not in np.unique(branch_data['branch-type']): 
         data = np.zeros_like(branch_data[branch_data['branch-type'] == 1])
         
-        res += [(str('SKNW:Number of ') + str(br_type_nams[3]),0),
-                (str('SKNW:Ratio of ') + str(br_type_nams[3]),0)]
+        CNFs += [(str('SKNW1D:Number of ') + str(br_type_nams[3]),0),
+                (str('SKNW1D:Ratio of ') + str(br_type_nams[3]),0)]
         
         for col_ in cols:
-            res += [(str('SKNW:Mean of ') + str(br_type_nams[3]) + str(' ') + str(col_),0),
-                    (str('SKNW:Std of ') + str(br_type_nams[3]) + str(' ') + str(col_),0)]
+            CNFs += [(str('SKNW1D:Mean of ') + str(br_type_nams[3]) + str(' ') + str(col_),0),
+                    (str('SKNW1D:Std of ') + str(br_type_nams[3]) + str(' ') + str(col_),0)]
         
     #br_type_lens = [len(branch_data[branch_data['branch-type'] == typ]) for typ in np.unique(branch_data['branch-type'] )]
     
-#     res += [('SKNW:Number of Endpoint-to-endpoint (isolated branch)',br_type_lens[0]),
-#             ('SKNW:Ration of Endpoint-to-endpoint (isolated branch)',br_type_lens[0]/Npaths),
-#             ('SKNW:Number of Junction-to-endpoints',br_type_lens[1]),
-#             ('SKNW:Number of Junction-to-endpoints',br_type_lens[1]/Npaths),
-#             ('SKNW:Number of Junction-to-junctions',br_type_lens[2]),
-#             ('SKNW:Number of Junction-to-junctions',br_type_lens[2]/Npaths),
-#             ('SKNW:Number of Isolated cycles',br_type_lens[3]),
-#             ('SKNW:Number of Isolated cycles',br_type_lens[3]/Npaths)]
+
     
     
-
-    # Plot
-    if plot: 
-        # Connectivity Image
-        fig_branch,ax_branch = plt.subplots(figsize=(8,8))
-        ax_branch.imshow(make_degree_image(sk)) #yellow = junction to junction, #light green -junction to endpoint, #dark green - endpoint-to-endpoint
-        ax_branch.set_title('Connectivity')
-        ax_branch.set_xlim(min(cyto_info[1]), max(cyto_info[1]))
-        ax_branch.set_ylim(min(cyto_info[0]), max(cyto_info[0]))
-        fig_branch.show()
-        
-    return res
-    
-#r = branch(ske,[x_,y_],[row['ROImask'] * NucleiDeconvDF['Image'][row['Index']],centroid,cr],False)
-
-
-def graphAnalysis(sk,infocyto,infonucl,mask,plot):
-    global skeleton
-    # infocyto = [x_,y_]
-    # infonucl = [NucleiDeconvDF['Image'][row['Index']],centroid,cr] 
-    #graph = sknw.build_sknw(skeleton,multi=False,**[{'iso':False}])
 #     graph = sknw.build_sknw(sk)
     
 #     # Get branch sizes and turtuosity
@@ -717,7 +706,7 @@ def graphAnalysis(sk,infocyto,infonucl,mask,plot):
 #         plt.show()
         
     #pixel_graph, coordinates = skeleton_to_csgraph(skeleton * DeconvDF['Image'][row['Index']])
-    ske = Skeleton((sk).astype(float)) 
+    
 #     skeleton_to_csgraph
 #     branch_data = summarize(ske)
     
@@ -726,7 +715,7 @@ def graphAnalysis(sk,infocyto,infonucl,mask,plot):
 #     std_int = ske.path_stdev()
     
     # Branch Analysis
-    branch_feats = branch(sk,ske,[infocyto[0],infocyto[1]],[mask * infonucl[0],infonucl[1],infonucl[2]],plot)
+    #branch_feats = branch(sk,ske,[infocyto[0],infocyto[1]],[mask * infonucl[0],infonucl[1],infonucl[2]])
                    
     # Sholl Analysis
     sholl_feats,sholl_hist = sholl(sk,[infocyto[0],infocyto[1]],[mask * infonucl[0],infonucl[1],infonucl[2]],plot)
@@ -735,10 +724,18 @@ def graphAnalysis(sk,infocyto,infonucl,mask,plot):
     
     return ske.graph,branch_feats + sholl_feats,sholl_hist
 
-def sholl(img,cyto_info,nuclei_info,plot):
+
+
+    
+#r = branch(ske,[x_,y_],[row['ROImask'] * NucleiDeconvDF['Image'][row['Index']],centroid,cr],False)
+
+
+def sholl(img,cyto_info,nuclei_info):
+    """
     #img         = skeleton img intensified   #img = skeleton * DeconvDF['Image'][row['Index']]
     # cyto info  = [x_,y_]
     #nuclei info = [nuclei img   , centroid,contour (cr)]
+    """
     
     # Get cytoskeleton centroid
     cytoCentroid = regionprops((img!=0)*1,img)[0].centroid #without offset
@@ -768,54 +765,12 @@ def sholl(img,cyto_info,nuclei_info,plot):
     fts         = tools.signal_stats(list(tableCy['crossings']))._names
     tempCy      = np.array(list(tools.signal_stats(list(tableCy['crossings']))))
     tempNc      = np.array(list(tools.signal_stats(list(tableNc['crossings']))))
-    sholl_feats = list(zip(['SKNW:Sholl Crossings Cyto ' + str(f) for f in fts],tempCy)) + list(zip(['SKNW:Sholl Crossings Nuclei ' + str(fn) for fn in fts],tempNc))
+    
+    sholl_feats = list(zip(['SKNW1D:Sholl Crossings Cyto ' + str(f) for f in fts],tempCy)) + list(zip(['SKNW1D:Sholl Crossings Nuclei ' + str(fn) for fn in fts],tempNc))
 
-
-    # Plot results
-    if plot:
-        # Create figure
-        fig_sholl, ax_sholl = plt.subplots(figsize=(8, 8)) #draw.overlay_skeleton_2d_class(ske, axes=ax_sholl)
-        
-        # Plot skeleton
-        ax_sholl.imshow(img,cmap='gray')
-
-        # Plot sholl lines, cyto and muclei centroid, nuclei contour. Set lims
-        [ax_sholl.add_patch(c) for c in [Circle((center_Cy[1], center_Cy[0]),radius=r, fill=False, edgecolor='r',ls=':') for r in shell_radii_Cy]]
-        [ax_sholl.add_patch(n) for n in [Circle((nuclei_info[1][1], nuclei_info[1][0]), radius=r, fill=False, edgecolor='#6495ED',ls=':') for r in shell_radii_Nc]]
-        ax_sholl.plot(nuclei_info[1][1],nuclei_info[1][0],'o',color='#6495ED',markersize=8,zorder=8)
-        ax_sholl.plot(cytoCentroid[1],cytoCentroid[0],'o',color='r',markersize=8,zorder=8)
-        ax_sholl.plot(nuclei_info[2][:,0],nuclei_info[2][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5)
-        ax_sholl.set_xlim(min(cyto_info[1]), max(cyto_info[1]))
-        ax_sholl.set_ylim(min(cyto_info[0]), max(cyto_info[0]))
-        fig_sholl.show()
-
-        # HISTOGRAM
-        fig_sholl_hist, ax_sholl_hist = plt.subplots(figsize=(8, 8))
-        ax_sholl_hist.plot('radius', 'crossings', data=tableCy,color='r')
-        ax_sholl_hist.plot('radius', 'crossings', data=tableNc,color='#6495ED')
-        ax_sholl_hist.grid()
-        ax_sholl_hist.set_xlabel('radius')
-        ax_sholl_hist.set_ylabel('crossings')
-
-        fig_sholl_hist.show()
-        
     return sholl_feats,[tableCy,tableNc]
                    
-#sholl_feats = sholl(skeleton * DeconvDF['Image'][row['Index']],[x_,y_],[row['ROImask'] * NucleiDeconvDF['Image'][row['Index']],centroid,cr],True)
 
-def plot_nuclei_contours(CentroidsDF,imgIndex,ax):
-    for index,row in CentroidsDF[imgIndex].iterrows():
-        if type(imgIndex) != int:
-            ax.plot(row['Centroid'][1],row['Centroid'][0],'o',color='r',markersize=7,zorder=5)
-        else:
-            ax.plot(row['Centroid'][1],row['Centroid'][0],'o',color='b',markersize=7,zorder=5)
-            try:
-                contourr  = row['Contour'][0]
-                cr = contourr.reshape((contourr.shape[0],contourr.shape[2]))
-            except:
-                contourr  = row['Contour']
-                cr = contourr.reshape((contourr.shape[0],contourr.shape[2]))
-            ax.plot(cr[:,0],cr[:,1],'--',color='w',zorder=11,linewidth=2)
 
 def newtheta(lines):
     thetas = []
@@ -834,12 +789,7 @@ def newtheta(lines):
         thetas += [theta]
     return thetas
 
-def getAAI(patch):
-    aga       = np.histogram(255 * (patch/np.max(patch)),bins=256)
-    local_min = argrelextrema(aga[0], np.less)[0]
-    AAI       = np.sum(aga[0][local_min[0]:local_min[-1]] * aga[1][local_min[0]:local_min[-1]]) / len(np.where(patch != 0)[0])
-    
-    return AAI
+
 
 def Others(img_cyto,img_nucl,lines):
     # Cyto-Nuc Centroid Divergence:

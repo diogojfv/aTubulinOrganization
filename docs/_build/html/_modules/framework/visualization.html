@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>framework.visualization &mdash; CYSK Documentation 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            CYSK Documentation
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../framework.html">framework package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">CYSK Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">framework.visualization</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for framework.visualization</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Math, image processing and other useful libraries</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">unicode_literals</span><span class="p">,</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">from</span> <span class="nn">matplotlib.ticker</span> <span class="kn">import</span> <span class="n">MaxNLocator</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">combinations</span>
+
+<span class="c1"># Image processing</span>
+<span class="kn">from</span> <span class="nn">skimage.measure</span> <span class="kn">import</span> <span class="n">regionprops</span>
+<span class="kn">from</span> <span class="nn">skimage.filters</span> <span class="kn">import</span> <span class="n">meijering</span><span class="p">,</span> <span class="n">sato</span><span class="p">,</span> <span class="n">frangi</span><span class="p">,</span> <span class="n">hessian</span><span class="p">,</span> <span class="n">threshold_otsu</span>
+<span class="kn">from</span> <span class="nn">skimage.morphology</span> <span class="kn">import</span> <span class="n">extrema</span><span class="p">,</span> <span class="n">skeletonize</span>
+<span class="kn">from</span> <span class="nn">skimage.transform</span> <span class="kn">import</span> <span class="n">probabilistic_hough_line</span>
+<span class="kn">from</span> <span class="nn">skimage.draw</span> <span class="kn">import</span> <span class="n">disk</span><span class="p">,</span> <span class="n">circle_perimeter</span>
+<span class="kn">from</span> <span class="nn">scipy.ndimage</span> <span class="kn">import</span> <span class="n">gaussian_filter</span><span class="p">,</span> <span class="n">grey_closing</span>
+<span class="kn">from</span> <span class="nn">scipy.spatial</span> <span class="kn">import</span> <span class="n">distance_matrix</span>
+<span class="kn">from</span> <span class="nn">skimage</span> <span class="kn">import</span> <span class="n">data</span><span class="p">,</span> <span class="n">restoration</span><span class="p">,</span> <span class="n">util</span>
+<span class="kn">from</span> <span class="nn">roipoly</span> <span class="kn">import</span> <span class="n">RoiPoly</span>
+<span class="kn">from</span> <span class="nn">matplotlib_scalebar.scalebar</span> <span class="kn">import</span> <span class="n">ScaleBar</span>
+<span class="kn">from</span> <span class="nn">biosppy.signals</span> <span class="kn">import</span> <span class="n">tools</span>
+<span class="kn">from</span> <span class="nn">biosppy.stats</span> <span class="kn">import</span> <span class="n">pearson_correlation</span>
+<span class="kn">from</span> <span class="nn">sklearn.preprocessing</span> <span class="kn">import</span> <span class="n">StandardScaler</span>
+<span class="kn">from</span> <span class="nn">sklearn.decomposition</span> <span class="kn">import</span> <span class="n">PCA</span>
+
+<span class="c1"># Plotting</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.cm</span> <span class="k">as</span> <span class="nn">pltc</span>
+<span class="kn">import</span> <span class="nn">matplotlib.colors</span> <span class="k">as</span> <span class="nn">colors</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+
+<span class="c1"># Widgets</span>
+<span class="kn">import</span> <span class="nn">ipywidgets</span> <span class="k">as</span> <span class="nn">widgets</span>
+<span class="kn">from</span> <span class="nn">ipywidgets</span> <span class="kn">import</span> <span class="n">interact</span><span class="p">,</span> <span class="n">interactive</span><span class="p">,</span> <span class="n">fixed</span><span class="p">,</span> <span class="n">interact_manual</span>
+<span class="kn">from</span> <span class="nn">IPython.display</span> <span class="kn">import</span> <span class="n">display</span>
+
+<span class="c1"># Feature Extraction (.py files by Teresa Parreira)</span>
+<span class="c1"># from CytoSkeletonPropsMorph import CytoSkeletonPropsMorph</span>
+<span class="c1"># from CytoSkeletonRegionPropsInt import RegionPropsInt</span>
+<span class="c1"># from FreqAnalysis import FreqAnalysis</span>
+<span class="c1"># from GLCM import GLCM</span>
+
+<span class="c1"># Graph</span>
+<span class="kn">import</span> <span class="nn">sknw</span>
+<span class="kn">import</span> <span class="nn">networkx</span> <span class="k">as</span> <span class="nn">nx</span>
+<span class="kn">from</span> <span class="nn">scipy.signal</span> <span class="kn">import</span> <span class="n">argrelextrema</span>
+
+<span class="c1"># </span>
+<span class="kn">from</span> <span class="nn">skan</span> <span class="kn">import</span> <span class="n">Skeleton</span><span class="p">,</span> <span class="n">summarize</span><span class="p">,</span><span class="n">draw</span>
+<span class="kn">from</span> <span class="nn">skan.csr</span> <span class="kn">import</span> <span class="n">skeleton_to_csgraph</span><span class="p">,</span> <span class="n">sholl_analysis</span><span class="p">,</span><span class="n">make_degree_image</span>
+<span class="kn">import</span> <span class="nn">scipy</span> <span class="k">as</span> <span class="nn">sp</span>
+<span class="kn">import</span> <span class="nn">scipy.sparse</span>
+<span class="kn">from</span> <span class="nn">matplotlib.patches</span> <span class="kn">import</span> <span class="n">Circle</span>
+<span class="kn">from</span> <span class="nn">framework.ImageFeatures</span> <span class="kn">import</span> <span class="n">ImageFeatures</span><span class="p">,</span><span class="n">getvoxelsize</span>
+<span class="kn">from</span> <span class="nn">framework.Functions</span> <span class="kn">import</span> <span class="n">cv2toski</span><span class="p">,</span><span class="n">pylsdtoski</span><span class="p">,</span><span class="n">polar_to_cartesian</span><span class="p">,</span> <span class="n">remove_not1D</span><span class="p">,</span> <span class="n">quantitative_analysis</span><span class="p">,</span><span class="n">hist_bin</span><span class="p">,</span><span class="n">hist_lim</span><span class="p">,</span><span class="n">create_separate_DFs</span><span class="p">,</span><span class="n">branch</span><span class="p">,</span><span class="n">graphAnalysis</span>
+<span class="kn">from</span> <span class="nn">framework.Importing</span> <span class="kn">import</span> <span class="n">label_image</span><span class="p">,</span><span class="n">init_import</span>
+<span class="c1">#from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation</span>
+<span class="kn">from</span> <span class="nn">framework.Processing</span> <span class="kn">import</span> <span class="n">process3Dnuclei</span><span class="p">,</span><span class="n">analyze_cell</span>
+
+<span class="c1">#from fractal_dimension import fractal_dimension</span>
+<span class="c1">#from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC</span>
+
+
+<div class="viewcode-block" id="plot_nuclei_contours"><a class="viewcode-back" href="../../framework.html#framework.visualization.plot_nuclei_contours">[docs]</a><span class="k">def</span> <span class="nf">plot_nuclei_contours</span><span class="p">(</span><span class="n">CentroidsDF</span><span class="p">,</span><span class="n">imgIndex</span><span class="p">,</span><span class="n">ax</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">index</span><span class="p">,</span><span class="n">row</span> <span class="ow">in</span> <span class="n">CentroidsDF</span><span class="p">[</span><span class="n">imgIndex</span><span class="p">]</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">imgIndex</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">int</span><span class="p">:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;Centroid&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;Centroid&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;o&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span><span class="n">markersize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;Centroid&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;Centroid&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;o&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">,</span><span class="n">markersize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">contourr</span>  <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;Contour&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">cr</span> <span class="o">=</span> <span class="n">contourr</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">contourr</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">contourr</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">contourr</span>  <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;Contour&#39;</span><span class="p">]</span>
+                <span class="n">cr</span> <span class="o">=</span> <span class="n">contourr</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">contourr</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">contourr</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">cr</span><span class="p">[:,</span><span class="mi">0</span><span class="p">],</span><span class="n">cr</span><span class="p">[:,</span><span class="mi">1</span><span class="p">],</span><span class="s1">&#39;--&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span></div>
+            
+
+            
+            
+<div class="viewcode-block" id="intensity_plotter"><a class="viewcode-back" href="../../framework.html#framework.visualization.intensity_plotter">[docs]</a><span class="k">def</span> <span class="nf">intensity_plotter</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">,</span><span class="n">data</span><span class="p">,</span><span class="n">save</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">matplotlib.colors</span> <span class="kn">import</span> <span class="n">LinearSegmentedColormap</span>
+    
+    <span class="c1"># Color map</span>
+    <span class="n">colors</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="c1"># first color is white, last is red</span>
+    <span class="n">cm</span>     <span class="o">=</span> <span class="n">LinearSegmentedColormap</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span><span class="s2">&quot;Custom&quot;</span><span class="p">,</span> <span class="n">colors</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+    
+    <span class="c1">##### FIGURE 1</span>
+    <span class="c1"># Initialize figure 1</span>
+    <span class="n">fig</span><span class="p">,</span><span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">8</span><span class="p">))</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Mask&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;CYTO_PRE&#39;</span><span class="p">][</span><span class="s1">&#39;Skeleton&#39;</span><span class="p">][</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Img Index&#39;</span><span class="p">]],</span><span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+    
+    <span class="c1"># Plot Nucleus Centroid and Cytoskeleton Centroid</span>
+    <span class="c1">#ax.plot(ResultsRow[&#39;Nucleus Centroid&#39;][1],ResultsRow[&#39;Nucleus Centroid&#39;][0],&#39;.&#39;,color=&#39;#6495ED&#39;,markersize=5,zorder=8)</span>
+    <span class="c1">#ax.plot(ResultsRow[&#39;Nucleus Centroid&#39;][1],ResultsRow[&#39;Nucleus Centroid&#39;][0],&#39;o&#39;,color=&#39;#6495ED&#39;,markersize=15,zorder=8,fillstyle=&#39;none&#39;)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Nucleus Centroid&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Nucleus Centroid&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;o&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;#6495ED&#39;</span><span class="p">,</span><span class="n">markersize</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+    
+    <span class="c1">#ax.plot(ResultsRow[&#39;Cytoskeleton Centroid&#39;][1],ResultsRow[&#39;Cytoskeleton Centroid&#39;][0],&#39;.&#39;,color=&#39;r&#39;,markersize=5,zorder=8)</span>
+    <span class="c1">#ax.plot(ResultsRow[&#39;Cytoskeleton Centroid&#39;][1],ResultsRow[&#39;Cytoskeleton Centroid&#39;][0],&#39;o&#39;,color=&#39;r&#39;,markersize=15,zorder=8,fillstyle=&#39;none&#39;,)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Cytoskeleton Centroid&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Cytoskeleton Centroid&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;o&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span><span class="n">markersize</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+    
+    <span class="c1"># Plot Nucleus Contour</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Nucleus Contour&#39;</span><span class="p">][:,</span><span class="mi">0</span><span class="p">],</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Nucleus Contour&#39;</span><span class="p">][:,</span><span class="mi">1</span><span class="p">],</span><span class="s1">&#39;--&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;#6495ED&#39;</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mf">2.5</span><span class="p">)</span>
+    
+    <span class="c1"># Set x and y lims and title</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">4</span><span class="p">]),</span><span class="nb">max</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">4</span><span class="p">])])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">5</span><span class="p">]),</span><span class="nb">max</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">5</span><span class="p">])])</span>
+    
+    <span class="c1"># Scale Bar</span>
+    <span class="n">scalebar</span> <span class="o">=</span> <span class="n">ScaleBar</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s2">&quot;px&quot;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">box_alpha</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">dimension</span><span class="o">=</span><span class="s1">&#39;pixel-length&#39;</span><span class="p">)</span> 
+    <span class="n">ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">scalebar</span><span class="p">)</span>
+    
+    <span class="c1"># Adjust and Show</span>
+    <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;.//output1.png&quot;</span><span class="p">,</span><span class="nb">format</span><span class="o">=</span><span class="s1">&#39;png&#39;</span><span class="p">,</span><span class="n">transparent</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">,</span><span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    
+    
+    <span class="c1">##### FIGURE 2</span>
+    <span class="c1"># Initialize figure 2</span>
+    <span class="n">fig</span><span class="p">,</span><span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">8</span><span class="p">))</span>
+    <span class="n">intensity</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;CYTO_DECONV&#39;</span><span class="p">][</span><span class="s1">&#39;Image&#39;</span><span class="p">][</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Img Index&#39;</span><span class="p">]]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;CYTO_DECONV&#39;</span><span class="p">][</span><span class="s1">&#39;Image&#39;</span><span class="p">][</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Img Index&#39;</span><span class="p">]])</span>
+    <span class="n">aux</span> <span class="o">=</span> <span class="n">intensity</span> <span class="o">*</span> <span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Mask&#39;</span><span class="p">]</span>
+    <span class="n">aux</span> <span class="o">=</span> <span class="n">aux</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">aux</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Mask&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;CYTO_PRE&#39;</span><span class="p">][</span><span class="s1">&#39;Skeleton&#39;</span><span class="p">][</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Img Index&#39;</span><span class="p">]]</span><span class="o">*</span><span class="n">aux</span><span class="p">,</span><span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="p">)</span>
+
+    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+    
+    <span class="c1"># Plot Nucleus Centroid and Cytoskeleton Centroid</span>
+    <span class="c1">#ax.plot(ResultsRow[&#39;Nucleus Centroid&#39;][1],ResultsRow[&#39;Nucleus Centroid&#39;][0],&#39;.&#39;,color=&#39;#6495ED&#39;,markersize=5,zorder=8)</span>
+    <span class="c1">#ax.plot(ResultsRow[&#39;Nucleus Centroid&#39;][1],ResultsRow[&#39;Nucleus Centroid&#39;][0],&#39;o&#39;,color=&#39;#6495ED&#39;,markersize=15,zorder=8,fillstyle=&#39;none&#39;)</span>
+    <span class="c1">#ax.plot(ResultsRow[&#39;Nucleus Centroid&#39;][1],ResultsRow[&#39;Nucleus Centroid&#39;][0],&#39;o&#39;,color=&#39;#6495ED&#39;,markersize=12,zorder=8,alpha=0.5)</span>
+    
+    <span class="c1">#ax.plot(ResultsRow[&#39;Cytoskeleton Centroid&#39;][1],ResultsRow[&#39;Cytoskeleton Centroid&#39;][0],&#39;.&#39;,color=&#39;r&#39;,markersize=5,zorder=8)</span>
+    <span class="c1">#ax.plot(ResultsRow[&#39;Cytoskeleton Centroid&#39;][1],ResultsRow[&#39;Cytoskeleton Centroid&#39;][0],&#39;o&#39;,color=&#39;r&#39;,markersize=15,zorder=8,fillstyle=&#39;none&#39;,)</span>
+    <span class="c1">#ax.plot(ResultsRow[&#39;Cytoskeleton Centroid&#39;][1],ResultsRow[&#39;Cytoskeleton Centroid&#39;][0],&#39;o&#39;,color=&#39;r&#39;,markersize=12,zorder=8,alpha=0.5)</span>
+    
+    <span class="c1"># Plot Nucleus Contour</span>
+    <span class="c1">#ax.plot(ResultsRow[&#39;Nucleus Contour&#39;][:,0],ResultsRow[&#39;Nucleus Contour&#39;][:,1],&#39;--&#39;,color=&#39;#6495ED&#39;,zorder=11,linewidth=2.5,alpha=0.5)</span>
+         
+    <span class="c1"># Set x and y lims and title</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">4</span><span class="p">]),</span><span class="nb">max</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">4</span><span class="p">])])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">5</span><span class="p">]),</span><span class="nb">max</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">5</span><span class="p">])])</span>
+    <span class="c1">#ax.set_title(feat,fontsize=12)</span>
+    
+    <span class="c1"># Colorbar</span>
+    <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">pltc</span><span class="o">.</span><span class="n">ScalarMappable</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="p">),</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">shrink</span> <span class="o">=</span> <span class="mf">0.4</span><span class="p">)</span>
+    <span class="n">cbar</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="s1">&#39;Pixel Intensity&#39;</span><span class="p">,</span><span class="n">fontfamily</span><span class="o">=</span><span class="s1">&#39;arial&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+    <span class="c1">#cbar.set_ticks(np.linspace(0,90,10,endpoint=True))</span>
+    
+    <span class="c1"># Scale Bar</span>
+    <span class="n">scalebar</span> <span class="o">=</span> <span class="n">ScaleBar</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s2">&quot;px&quot;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">box_alpha</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">dimension</span><span class="o">=</span><span class="s1">&#39;pixel-length&#39;</span><span class="p">)</span> 
+    <span class="n">ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">scalebar</span><span class="p">)</span>
+    
+    <span class="c1"># Adjust and Show</span>
+    <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;.//output.png&quot;</span><span class="p">,</span><span class="nb">format</span><span class="o">=</span><span class="s1">&#39;png&#39;</span><span class="p">,</span><span class="n">transparent</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">,</span><span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    
+    <span class="k">return</span> <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Done.&#39;</span><span class="p">)</span>            </div>
+            
+<span class="c1"># intensity_plotter(ResultsRow=ResultsDF.loc[0],TextureDF=TextureDF,save=True)    </span>
+            
+            
+
+<span class="c1"># def line_plotter(ResultsRow,TextureDF,feat,cmap,normalize_bounds,colorbar_label,overlay_sk,save):</span>
+<span class="c1">#     fig,ax = plt.subplots(figsize=(8,8))</span>
+    
+<span class="c1">#     # Plot background</span>
+<span class="c1">#     if overlay_sk == False:</span>
+<span class="c1">#         ax.imshow(np.zeros((1040, 1388)),cmap=&#39;gray&#39;,alpha=0) </span>
+<span class="c1">#     else:</span>
+<span class="c1">#         ax.imshow(1-ResultsRow[&#39;Mask&#39;]*TextureDF[&#39;Skeleton&#39;][ResultsRow[&#39;Img Index&#39;]],cmap=&#39;gray&#39;)</span>
+<span class="c1">#     ax.axis(&#39;off&#39;)</span>
+    
+<span class="c1">#     # Get bounds for color map</span>
+<span class="c1">#     if normalize_bounds == &#39;default&#39;:</span>
+<span class="c1">#         normalize_bounds = [0,np.max(ResultsRow[feat])]</span>
+
+<span class="c1">#     # Plot Nucleus Centroid and Cytoskeleton Centroid</span>
+<span class="c1">#     #ax.plot(ResultsRow[&#39;Nucleus Centroid&#39;][1],ResultsRow[&#39;Nucleus Centroid&#39;][0],&#39;.&#39;,color=&#39;#6495ED&#39;,markersize=5,zorder=8)</span>
+<span class="c1">#     #ax.plot(ResultsRow[&#39;Nucleus Centroid&#39;][1],ResultsRow[&#39;Nucleus Centroid&#39;][0],&#39;o&#39;,color=&#39;#6495ED&#39;,markersize=15,zorder=8,fillstyle=&#39;none&#39;)</span>
+<span class="c1">#     ax.plot(ResultsRow[&#39;Nucleus Centroid&#39;][1],ResultsRow[&#39;Nucleus Centroid&#39;][0],&#39;o&#39;,color=&#39;#6495ED&#39;,markersize=12,zorder=8)</span>
+    
+<span class="c1">#     #ax.plot(ResultsRow[&#39;Cytoskeleton Centroid&#39;][1],ResultsRow[&#39;Cytoskeleton Centroid&#39;][0],&#39;.&#39;,color=&#39;r&#39;,markersize=5,zorder=8)</span>
+<span class="c1">#     #ax.plot(ResultsRow[&#39;Cytoskeleton Centroid&#39;][1],ResultsRow[&#39;Cytoskeleton Centroid&#39;][0],&#39;o&#39;,color=&#39;r&#39;,markersize=15,zorder=8,fillstyle=&#39;none&#39;,)</span>
+<span class="c1">#     ax.plot(ResultsRow[&#39;Cytoskeleton Centroid&#39;][1],ResultsRow[&#39;Cytoskeleton Centroid&#39;][0],&#39;o&#39;,color=&#39;r&#39;,markersize=12,zorder=8)</span>
+    
+<span class="c1">#     # Plot Nucleus Contour</span>
+<span class="c1">#     ax.plot(ResultsRow[&#39;Nucleus Contour&#39;][:,0],ResultsRow[&#39;Nucleus Contour&#39;][:,1],&#39;--&#39;,color=&#39;#6495ED&#39;,zorder=11,linewidth=2.5)</span>
+                
+<span class="c1">#     # Plot segments colored by feature value</span>
+<span class="c1">#     for l in range(len(ResultsRow[&#39;Lines&#39;])):</span>
+<span class="c1">#             # Get line = [p0,p1]. </span>
+<span class="c1">#             p0, p1 = ResultsRow[&#39;Lines&#39;][l]</span>
+<span class="c1">#             colour   = cmap(plt.Normalize(normalize_bounds[0], normalize_bounds[1])(ResultsRow[feat][l]))</span>
+<span class="c1">#             ax.plot((p0[0], p1[0]), (p0[1], p1[1]),linewidth=2,color=colour,alpha=1)</span>
+
+<span class="c1">#     # Set x and y lims and title</span>
+<span class="c1">#     ax.set_ylim([min(ResultsRow[&#39;Patches&#39;][4]),max(ResultsRow[&#39;Patches&#39;][4])])</span>
+<span class="c1">#     ax.set_xlim([min(ResultsRow[&#39;Patches&#39;][5]),max(ResultsRow[&#39;Patches&#39;][5])])</span>
+<span class="c1">#     ax.set_title(feat,fontsize=12)</span>
+    
+<span class="c1">#     # Colorbar</span>
+<span class="c1">#     cbar = fig.colorbar(pltc.ScalarMappable(norm=plt.Normalize(normalize_bounds[0], normalize_bounds[1]), cmap=cmap), ax=ax, shrink = 0.4)</span>
+<span class="c1">#     cbar.set_label(colorbar_label,fontfamily=&#39;arial&#39;,fontsize=12)</span>
+<span class="c1">#     #cbar.set_ticks(np.linspace(0,90,10,endpoint=True))</span>
+    
+<span class="c1">#     # Scale Bar</span>
+<span class="c1">#     scalebar = ScaleBar(1,&quot;px&quot;,color=&#39;k&#39;,box_alpha=0,dimension=&#39;pixel-length&#39;) </span>
+<span class="c1">#     ax.add_artist(scalebar)</span>
+    
+<span class="c1">#     # Adjust and Show</span>
+<span class="c1">#     fig.tight_layout(rect=[0, 0.03, 1, 0.95])</span>
+<span class="c1">#     if save:</span>
+<span class="c1">#         plt.savefig(&quot;.//output.png&quot;,format=&#39;png&#39;,transparent=True,bbox_inches=&#39;tight&#39;,dpi=300)</span>
+<span class="c1">#     fig.show()</span>
+    
+<span class="c1">#     return print(&#39;Done.&#39;)</span>
+
+<span class="c1"># Color map</span>
+<span class="c1"># colors = [(0.5, 0.5, 0.5), (1, 0, 0)] # first color is black, last is red</span>
+<span class="c1"># cm     = LinearSegmentedColormap.from_list(&quot;Custom&quot;, colors, N=300)</span>
+
+<span class="c1">#cmap     = pltc.rainbow</span>
+<span class="c1">#cm       = truncate_colormap(cmap, 0, 1, 300)</span>
+
+
+<span class="c1">#line_plotter(ResultsRow=ResultsDF.loc[2],TextureDF=TextureDF,feat=&#39;LSF2D:Distances to Centroid&#39;,cmap=cm,normalize_bounds=&#39;default&#39;,colorbar_label=&#39;Degrees&#39;,overlay_sk=True,save=False)</span>
+
+
+<div class="viewcode-block" id="line_plotter"><a class="viewcode-back" href="../../framework.html#framework.visualization.line_plotter">[docs]</a><span class="k">def</span> <span class="nf">line_plotter</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">,</span><span class="n">TextureDF</span><span class="p">,</span><span class="n">feat</span><span class="p">,</span><span class="n">cmap</span><span class="p">,</span><span class="n">normalize_bounds</span><span class="p">,</span><span class="n">colorbar_label</span><span class="p">,</span><span class="n">overlay</span><span class="p">,</span><span class="n">save</span><span class="p">):</span>
+    
+    <span class="kn">from</span> <span class="nn">matplotlib.colors</span> <span class="kn">import</span> <span class="n">LinearSegmentedColormap</span>
+    <span class="n">fig</span><span class="p">,</span><span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">))</span>
+    
+    <span class="c1"># Plot background</span>
+    <span class="k">if</span> <span class="n">overlay</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1040</span><span class="p">,</span> <span class="mi">1388</span><span class="p">)),</span><span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">overlay</span> <span class="o">==</span> <span class="s1">&#39;deconv&#39;</span><span class="p">:</span>
+        <span class="c1">#ax.imshow(1-ResultsRow[&#39;Mask&#39;]*TextureDF[&#39;Skeleton&#39;][ResultsRow[&#39;Img Index&#39;]],cmap=&#39;gray&#39;)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span><span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        
+    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+    
+    <span class="c1"># Get bounds for color map (either &#39;default&#39; or [0,90], etc)</span>
+    <span class="k">if</span> <span class="n">normalize_bounds</span> <span class="o">==</span> <span class="s1">&#39;default&#39;</span><span class="p">:</span>
+        <span class="n">normalize_bounds</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="n">feat</span><span class="p">])]</span>
+
+    <span class="c1"># Plot Nucleus Centroid and Cytoskeleton Centroid</span>
+    <span class="c1">#ax.plot(ResultsRow[&#39;Nucleus Centroid&#39;][1],ResultsRow[&#39;Nucleus Centroid&#39;][0],&#39;.&#39;,color=&#39;#6495ED&#39;,markersize=5,zorder=8)</span>
+    <span class="c1">#ax.plot(ResultsRow[&#39;Nucleus Centroid&#39;][1],ResultsRow[&#39;Nucleus Centroid&#39;][0],&#39;o&#39;,color=&#39;#6495ED&#39;,markersize=15,zorder=8,fillstyle=&#39;none&#39;)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Nucleus Centroid&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Nucleus Centroid&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;o&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;#6495ED&#39;</span><span class="p">,</span><span class="n">markersize</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+    
+    <span class="c1">#ax.plot(ResultsRow[&#39;Cytoskeleton Centroid&#39;][1],ResultsRow[&#39;Cytoskeleton Centroid&#39;][0],&#39;.&#39;,color=&#39;r&#39;,markersize=5,zorder=8)</span>
+    <span class="c1">#ax.plot(ResultsRow[&#39;Cytoskeleton Centroid&#39;][1],ResultsRow[&#39;Cytoskeleton Centroid&#39;][0],&#39;o&#39;,color=&#39;r&#39;,markersize=15,zorder=8,fillstyle=&#39;none&#39;,)</span>
+    <span class="c1">#ax.plot(ResultsRow[&#39;Cytoskeleton Centroid&#39;][1],ResultsRow[&#39;Cytoskeleton Centroid&#39;][0],&#39;o&#39;,color=&#39;r&#39;,markersize=12,zorder=8)</span>
+    
+    <span class="c1"># Plot Nucleus Contour</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Nucleus Contour&#39;</span><span class="p">][:,</span><span class="mi">0</span><span class="p">],</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Nucleus Contour&#39;</span><span class="p">][:,</span><span class="mi">1</span><span class="p">],</span><span class="s1">&#39;--&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;#6495ED&#39;</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mf">2.5</span><span class="p">)</span>
+                
+    <span class="c1"># Plot segments colored by feature value</span>
+    <span class="c1">#cmap     = pltc.rainbow_r</span>
+    <span class="c1">#cmap = pltc.hsv</span>
+    <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Lines&#39;</span><span class="p">])):</span>
+            <span class="c1"># Get line = [p0,p1]. </span>
+            <span class="n">p0</span><span class="p">,</span> <span class="n">p1</span> <span class="o">=</span> <span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Lines&#39;</span><span class="p">][</span><span class="n">l</span><span class="p">]</span>
+            
+            <span class="k">if</span> <span class="n">feat</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">colour</span>   <span class="o">=</span> <span class="n">cmap</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">normalize_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">normalize_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">])(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="n">feat</span><span class="p">][</span><span class="n">l</span><span class="p">]))</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">((</span><span class="n">p0</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">p1</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="p">(</span><span class="n">p0</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="n">colour</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cmap</span> <span class="o">=</span> <span class="n">pltc</span><span class="o">.</span><span class="n">rainbow_r</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">((</span><span class="n">p0</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">p1</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="p">(</span><span class="n">p0</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="n">cmap</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span><span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+                
+    
+    
+    <span class="c1"># Colorbar</span>
+    <span class="k">if</span> <span class="n">colorbar_label</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">pltc</span><span class="o">.</span><span class="n">ScalarMappable</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">normalize_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">normalize_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">),</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">shrink</span> <span class="o">=</span> <span class="mf">0.4</span><span class="p">)</span>
+        <span class="n">cbar</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="n">colorbar_label</span><span class="p">,</span><span class="n">fontfamily</span><span class="o">=</span><span class="s1">&#39;arial&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+        <span class="c1">#cbar.set_ticks(np.linspace(0,90,10,endpoint=True))</span>
+
+    <span class="c1"># Scale Bar</span>
+<span class="c1">#     scalebar = ScaleBar(1,&quot;um&quot;,color=&#39;k&#39;,box_alpha=0,dimension=&#39;si-length&#39;,location=&#39;lower right&#39;) </span>
+<span class="c1">#     ax.add_artist(scalebar)</span>
+
+    <span class="c1"># Set x and y lims and title</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">4</span><span class="p">]),</span><span class="nb">max</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">4</span><span class="p">])])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">5</span><span class="p">]),</span><span class="nb">max</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">5</span><span class="p">])])</span>
+    <span class="c1">#ax.set_title(feat,fontsize=12)</span>
+    
+    <span class="c1"># Adjust and Show</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">rect</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.03</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">save</span> <span class="o">!=</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;.//&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">save</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.png&quot;</span><span class="p">,</span><span class="nb">format</span><span class="o">=</span><span class="s1">&#39;png&#39;</span><span class="p">,</span><span class="n">transparent</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">,</span><span class="n">dpi</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    
+    <span class="k">return</span> <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Done.&#39;</span><span class="p">)</span></div>
+
+<span class="c1"># # Color map</span>
+<span class="c1"># # colors = [(0.5, 0.5, 0.5), (1, 0, 0)] # first color is black, last is red</span>
+<span class="c1"># # cm     = LinearSegmentedColormap.from_list(&quot;Custom&quot;, colors, N=300)</span>
+
+<span class="c1"># #cmap     = pltc.rainbow</span>
+<span class="c1"># #cm       = truncate_colormap(cmap, 0, 1, 300)</span>
+
+<span class="c1"># #print(&#39;line_plotter&#39;)</span>
+<span class="c1"># #line_plotter(ResultsRow=ResultsDF.loc[0],TextureDF=TextureDF,feat=&#39;LSF2D:Distances to Centroid&#39;,cmap=cm,normalize_bounds=&#39;default&#39;,colorbar_label=&#39;Pixels&#39;,overlay_sk=True,save=False)</span>
+
+
+
+<div class="viewcode-block" id="graph_plotter"><a class="viewcode-back" href="../../framework.html#framework.visualization.graph_plotter">[docs]</a><span class="k">def</span> <span class="nf">graph_plotter</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">,</span><span class="n">data</span><span class="p">,</span><span class="n">cmap</span><span class="p">,</span><span class="n">feat</span><span class="p">,</span><span class="n">normalize_bounds</span><span class="p">,</span><span class="n">colorbar_label</span><span class="p">,</span><span class="n">nodes</span><span class="p">,</span><span class="n">main_branch</span><span class="p">,</span><span class="n">overlay</span><span class="p">,</span><span class="n">scalebar</span><span class="p">,</span><span class="n">save</span><span class="p">):</span>
+    <span class="c1"># Get skeleton</span>
+    <span class="n">img</span>       <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;CYTO_DECONV&#39;</span><span class="p">][</span><span class="s1">&#39;Image&#39;</span><span class="p">][</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Img Index&#39;</span><span class="p">]]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;CYTO_DECONV&#39;</span><span class="p">][</span><span class="s1">&#39;Image&#39;</span><span class="p">][</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Img Index&#39;</span><span class="p">]])</span>
+    <span class="n">intensity</span> <span class="o">=</span> <span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Mask&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">img</span>
+    <span class="n">ske</span>       <span class="o">=</span> <span class="n">Skeleton</span><span class="p">((</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Mask&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;CYTO_PRE&#39;</span><span class="p">][</span><span class="s1">&#39;Skeleton&#39;</span><span class="p">][</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Img Index&#39;</span><span class="p">]]</span><span class="o">*</span><span class="p">(</span><span class="n">intensity</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">intensity</span><span class="p">)))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">))</span> 
+    
+    <span class="c1"># Initialize figure</span>
+    <span class="n">fig</span><span class="p">,</span><span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">overlay</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Mask&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;CYTO_PRE&#39;</span><span class="p">][</span><span class="s1">&#39;Skeleton&#39;</span><span class="p">][</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Img Index&#39;</span><span class="p">]]),</span><span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">overlay</span> <span class="o">==</span> <span class="s1">&#39;deconv&#39;</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Mask&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;CYTO_DECONV&#39;</span><span class="p">][</span><span class="s1">&#39;Image&#39;</span><span class="p">][</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Img Index&#39;</span><span class="p">]])</span> <span class="o">-</span> <span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Mask&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;CYTO_DECONV&#39;</span><span class="p">][</span><span class="s1">&#39;Image&#39;</span><span class="p">][</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Img Index&#39;</span><span class="p">]],</span><span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+    
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Nucleus Centroid&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Nucleus Centroid&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;o&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;#6495ED&#39;</span><span class="p">,</span><span class="n">markersize</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Nucleus Contour&#39;</span><span class="p">][:,</span><span class="mi">0</span><span class="p">],</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Nucleus Contour&#39;</span><span class="p">][:,</span><span class="mi">1</span><span class="p">],</span><span class="s1">&#39;--&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;#6495ED&#39;</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mf">2.5</span><span class="p">)</span>
+     
+    
+    <span class="c1"># Get feat</span>
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;branch-distance&#39;</span><span class="p">:</span>
+        <span class="n">feat_list</span> <span class="o">=</span> <span class="n">ske</span><span class="o">.</span><span class="n">path_lengths</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;mean-pixel-value&#39;</span><span class="p">:</span>
+        <span class="n">feat_list</span> <span class="o">=</span> <span class="n">ske</span><span class="o">.</span><span class="n">path_means</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;stdev-pixel-value&#39;</span><span class="p">:</span>
+        <span class="n">feat_list</span> <span class="o">=</span> <span class="n">ske</span><span class="o">.</span><span class="n">path_stdev</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;euclidean-distance&#39;</span><span class="p">:</span>
+        <span class="n">feat_list</span> <span class="o">=</span> <span class="n">summarize</span><span class="p">(</span><span class="n">ske</span><span class="p">,</span><span class="n">find_main_branch</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="s1">&#39;euclidean-distance&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;tortuosity&#39;</span><span class="p">:</span>
+        <span class="n">feat_list</span> <span class="o">=</span> <span class="n">ske</span><span class="o">.</span><span class="n">path_lengths</span><span class="p">()</span> <span class="o">/</span> <span class="n">summarize</span><span class="p">(</span><span class="n">ske</span><span class="p">,</span><span class="n">find_main_branch</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="s1">&#39;euclidean-distance&#39;</span><span class="p">]</span> 
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;branch-type&#39;</span><span class="p">:</span>
+        <span class="n">feat_list</span> <span class="o">=</span> <span class="n">summarize</span><span class="p">(</span><span class="n">ske</span><span class="p">,</span><span class="n">find_main_branch</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">feat_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="n">ske</span><span class="o">.</span><span class="n">n_paths</span><span class="p">))</span>
+    
+    <span class="c1"># Get bounds for color map</span>
+    <span class="k">if</span> <span class="n">normalize_bounds</span> <span class="o">==</span> <span class="s1">&#39;default&#39;</span><span class="p">:</span>
+        <span class="n">normalize_bounds</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">feat_list</span><span class="p">)]</span>
+    
+    <span class="c1"># Plot paths</span>
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">!=</span> <span class="s1">&#39;branch-type&#39;</span><span class="p">:</span> <span class="c1"># Draw all segments 1 by 1</span>
+        <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ske</span><span class="o">.</span><span class="n">n_paths</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">feat</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">colour</span>   <span class="o">=</span> <span class="n">cmap</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">normalize_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">normalize_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">])(</span><span class="n">feat_list</span><span class="p">[</span><span class="n">e</span><span class="p">]))</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">e</span><span class="p">)[:,</span><span class="mi">1</span><span class="p">],</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">e</span><span class="p">)[:,</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;-&#39;</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="n">colour</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>  
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">e</span><span class="p">)[:,</span><span class="mi">1</span><span class="p">],</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">e</span><span class="p">)[:,</span><span class="mi">0</span><span class="p">],</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    
+<span class="c1">#     if feat == &#39;tortuosity&#39;: # Draw all segments 1 by 1</span>
+<span class="c1">#         n = 0</span>
+<span class="c1">#         for e in range(ske.n_paths):</span>
+<span class="c1">#             if feat != None and len(ske.path_coordinates(e)[:,0]) &gt; 1:</span>
+<span class="c1">#                 colour   = cmap(plt.Normalize(normalize_bounds[0], normalize_bounds[1])(feat_list[n]))</span>
+<span class="c1">#                 ax.plot(ske.path_coordinates(e)[:,0],ske.path_coordinates(e)[:,1],linewidth=2,color=colour,alpha=1)  </span>
+<span class="c1">#                 n = n + 1</span>
+<span class="c1">#             else:</span>
+<span class="c1">#                 ax.plot(ske.path_coordinates(e)[:,0],ske.path_coordinates(e)[:,1],linewidth=2,color=&#39;k&#39;,alpha=1)</span>
+    
+    
+    <span class="c1"># Branch type</span>
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;branch-type&#39;</span><span class="p">:</span> <span class="c1"># Filter by branch-type</span>
+        <span class="n">btypes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;endpoint-to-endpoint&#39;</span><span class="p">,</span><span class="s1">&#39;junction-to-endpoint&#39;</span><span class="p">,</span><span class="s1">&#39;junction-to-junction&#39;</span><span class="p">,</span><span class="s1">&#39;isolated cycle&#39;</span><span class="p">]</span>
+        <span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;#6E7E85&#39;</span><span class="p">,</span><span class="s1">&#39;#FFD966&#39;</span><span class="p">,</span><span class="s1">&#39;#6FA8DC&#39;</span><span class="p">,</span><span class="s1">&#39;#744253&#39;</span><span class="p">]</span>
+    
+        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">feat_list</span><span class="p">[</span><span class="n">feat_list</span><span class="p">[</span><span class="s1">&#39;branch-type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">b</span><span class="p">]</span>
+
+            <span class="n">flag</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">ind</span><span class="p">)[:,</span><span class="mi">1</span><span class="p">],</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">ind</span><span class="p">)[:,</span><span class="mi">0</span><span class="p">],</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">b</span><span class="p">],</span><span class="n">label</span><span class="o">=</span><span class="n">btypes</span><span class="p">[</span><span class="n">b</span><span class="p">])</span>
+                    <span class="n">flag</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">ind</span><span class="p">)[:,</span><span class="mi">1</span><span class="p">],</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">ind</span><span class="p">)[:,</span><span class="mi">0</span><span class="p">],</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">b</span><span class="p">])</span>
+                
+        <span class="n">leg</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">framealpha</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">loc</span><span class="o">=</span><span class="p">(</span><span class="mf">1.04</span><span class="p">,</span><span class="mf">0.7</span><span class="p">),</span><span class="n">labelcolor</span><span class="o">=</span><span class="s1">&#39;linecolor&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">setp</span><span class="p">(</span><span class="n">leg</span><span class="o">.</span><span class="n">texts</span><span class="p">,</span> <span class="n">family</span><span class="o">=</span><span class="s1">&#39;arial&#39;</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">main_branch</span><span class="p">:</span>
+        <span class="n">fb</span>    <span class="o">=</span> <span class="n">summarize</span><span class="p">(</span><span class="n">ske</span><span class="p">,</span><span class="n">find_main_branch</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">datab</span> <span class="o">=</span> <span class="n">fb</span><span class="p">[</span><span class="n">fb</span><span class="p">[</span><span class="s1">&#39;main&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="kc">True</span><span class="p">]</span>
+        <span class="n">flag</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">for</span> <span class="n">indb</span> <span class="ow">in</span> <span class="n">datab</span><span class="o">.</span><span class="n">index</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">indb</span><span class="p">)[:,</span><span class="mi">1</span><span class="p">],</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">indb</span><span class="p">)[:,</span><span class="mi">0</span><span class="p">],</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;main branch&#39;</span><span class="p">)</span>
+                    <span class="n">flag</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">indb</span><span class="p">)[:,],</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">indb</span><span class="p">)[:,</span><span class="mi">0</span><span class="p">],</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+        
+        <span class="n">leg</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">framealpha</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">loc</span><span class="o">=</span><span class="p">(</span><span class="mf">1.04</span><span class="p">,</span><span class="mf">0.7</span><span class="p">),</span><span class="n">labelcolor</span><span class="o">=</span><span class="s1">&#39;linecolor&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">setp</span><span class="p">(</span><span class="n">leg</span><span class="o">.</span><span class="n">texts</span><span class="p">,</span> <span class="n">family</span><span class="o">=</span><span class="s1">&#39;arial&#39;</span><span class="p">)</span>
+    
+        
+    <span class="c1"># Plot nodes</span>
+    <span class="k">if</span> <span class="n">nodes</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ske</span><span class="o">.</span><span class="n">n_paths</span><span class="p">):</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">e</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">e</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;o&#39;</span><span class="p">,</span><span class="n">markersize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">e</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span><span class="n">ske</span><span class="o">.</span><span class="n">path_coordinates</span><span class="p">(</span><span class="n">e</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;o&#39;</span><span class="p">,</span><span class="n">markersize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+
+    
+    <span class="c1"># Set x and y lims and title</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">5</span><span class="p">]),</span><span class="nb">max</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">5</span><span class="p">])])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">4</span><span class="p">]),</span><span class="nb">max</span><span class="p">(</span><span class="n">ResultsRow</span><span class="p">[</span><span class="s1">&#39;Patches&#39;</span><span class="p">][</span><span class="mi">4</span><span class="p">])])</span>
+    <span class="c1">#ax.set_title(feat,fontsize=12)</span>
+    
+    <span class="c1"># Colorbar</span>
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">!=</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">feat</span> <span class="o">!=</span><span class="s1">&#39;branch-type&#39;</span><span class="p">:</span>
+        <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">pltc</span><span class="o">.</span><span class="n">ScalarMappable</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">normalize_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">normalize_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">),</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">shrink</span> <span class="o">=</span> <span class="mf">0.4</span><span class="p">)</span>
+        <span class="n">cbar</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="n">colorbar_label</span><span class="p">,</span><span class="n">fontfamily</span><span class="o">=</span><span class="s1">&#39;arial&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+        <span class="c1">#cbar.set_ticks(np.linspace(0,90,10,endpoint=True))</span>
+
+    <span class="c1"># Scale Bar</span>
+    <span class="k">if</span> <span class="n">scalebar</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">scalebar</span> <span class="o">=</span> <span class="n">ScaleBar</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s2">&quot;um&quot;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">box_alpha</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">dimension</span><span class="o">=</span><span class="s1">&#39;si-length&#39;</span><span class="p">)</span> 
+        <span class="n">ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">scalebar</span><span class="p">)</span>
+    
+    <span class="c1"># save and show</span>
+    <span class="k">if</span> <span class="n">save</span> <span class="o">!=</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;.//&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">save</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.png&quot;</span><span class="p">,</span><span class="nb">format</span><span class="o">=</span><span class="s1">&#39;png&#39;</span><span class="p">,</span><span class="n">transparent</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">,</span><span class="n">dpi</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+    
+    
+
+<span class="c1">#cmap     = pltc.rainbow</span>
+<span class="c1">#cm       = truncate_colormap(cmap, 0, 1, 300)</span>
+
+<span class="c1">#print(&#39;graph_plotter&#39;)</span>
+<span class="c1">#data = graph_plotter(ResultsRow=ResultsDF.loc[0],feat=&#39;branch-type&#39;,cmap=cm,normalize_bounds=&#39;default&#39;,colorbar_label=&#39;Pixels&#39;,nodes=False,main_branch=True, save=True)</span>
+<span class="c1">#line_plotter(ResultsRow=ResultsDF.loc[2],TextureDF=TextureDF,feat=&#39;LSF2D:Distances to Centroid&#39;,cmap=cm,normalize_bounds=&#39;default&#39;,colorbar_label=&#39;Degrees&#39;,overlay_sk=True,save=False)</span>
+
+
+
+
+
+<span class="c1"># Useful functions</span>
+<div class="viewcode-block" id="truncate_colormap"><a class="viewcode-back" href="../../framework.html#framework.visualization.truncate_colormap">[docs]</a><span class="k">def</span> <span class="nf">truncate_colormap</span><span class="p">(</span><span class="n">cmap</span><span class="p">,</span> <span class="n">minval</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">maxval</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+    <span class="n">new_cmap</span> <span class="o">=</span> <span class="n">colors</span><span class="o">.</span><span class="n">LinearSegmentedColormap</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span>
+        <span class="s1">&#39;trunc(</span><span class="si">{n}</span><span class="s1">,</span><span class="si">{a:.2f}</span><span class="s1">,</span><span class="si">{b:.2f}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">cmap</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="n">minval</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="n">maxval</span><span class="p">),</span>
+        <span class="n">cmap</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">minval</span><span class="p">,</span> <span class="n">maxval</span><span class="p">,</span> <span class="n">n</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">new_cmap</span></div>
+
+<div class="viewcode-block" id="plot_hist"><a class="viewcode-back" href="../../framework.html#framework.visualization.plot_hist">[docs]</a><span class="k">def</span> <span class="nf">plot_hist</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span><span class="n">bins</span><span class="p">):</span>
+    <span class="n">cmap</span> <span class="o">=</span> <span class="n">pltc</span><span class="o">.</span><span class="n">Reds</span>
+    <span class="k">global</span> <span class="n">new_cmap</span>
+    <span class="n">new_cmap</span> <span class="o">=</span> <span class="n">truncate_colormap</span><span class="p">(</span><span class="n">cmap</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">300</span><span class="p">)</span>
+    
+    <span class="k">global</span> <span class="n">data</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">ImageLinesDF</span><span class="o">.</span><span class="n">tail</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">global</span> <span class="n">histog</span><span class="p">,</span><span class="n">bin_edges</span>
+    
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;Distances to Centroid&#39;</span><span class="p">:</span>
+        <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">280</span> <span class="o">+</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;Triangle Areas&#39;</span><span class="p">:</span>
+        <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4600</span> <span class="o">+</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;Line Lengths&#39;</span><span class="p">:</span>
+        <span class="c1"># max(data[feat][data.index[0]])</span>
+        <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">220</span> <span class="o">+</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="c1">#if feat == &#39;Theta&#39;:</span>
+    <span class="c1">#    bins = np.arange</span>
+    <span class="c1">#if feat == &#39;Angle Difference&#39;:</span>
+    <span class="c1">#    bins = np.arange</span>
+    
+    <span class="n">histo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">feat</span><span class="p">][</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span><span class="n">bins</span><span class="o">=</span><span class="n">bins</span><span class="p">)</span>
+    
+    <span class="c1"># AX1</span>
+    <span class="n">ax1</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Absolute Frequency&#39;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">set_major_locator</span><span class="p">(</span><span class="n">MaxNLocator</span><span class="p">(</span><span class="n">integer</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+    
+    <span class="k">global</span> <span class="n">colours</span>
+    <span class="c1">#colours = pltc.Reds(plt.Normalize(0, max(histog[0]))(histog[0]),alpha=0.7)</span>
+    <span class="c1">#colours = new_cmap(plt.Normalize(0, max(histo[0]))(histo[0]),alpha=0.7)</span>
+
+    <span class="c1">#ax1.bar(histog[1][:-1],histog[0],color=colours,zorder=5)</span>
+    <span class="n">histog</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">,</span> <span class="n">patches</span> <span class="o">=</span> <span class="n">ax1</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">feat</span><span class="p">][</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">bins</span><span class="o">=</span><span class="n">bins</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
+    <span class="c1">#ax1.color = new_cmap(plt.Normalize(0, max(histog))(histog),alpha=0.7)</span>
+    <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">histog</span><span class="p">,</span> <span class="n">patches</span><span class="p">):</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">setp</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s1">&#39;facecolor&#39;</span><span class="p">,</span> <span class="n">new_cmap</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">histog</span><span class="p">))(</span><span class="n">c</span><span class="p">),</span> <span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.7</span><span class="p">))</span>
+    
+    <span class="c1"># AX2</span>
+    <span class="n">ax2</span> <span class="o">=</span> <span class="n">ax1</span><span class="o">.</span><span class="n">twinx</span><span class="p">()</span>  
+    <span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Relative Frequency&#39;</span><span class="p">)</span>  
+    <span class="n">_</span> <span class="o">=</span> <span class="n">ax2</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">feat</span><span class="p">][</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">bins</span><span class="o">=</span><span class="n">bins</span><span class="p">,</span> <span class="n">density</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="c1">#ax2.plot(histog[1][:-1],(histog[0]/np.trapz(histog[0],x=histog[1][:-1])),&#39;--&#39;,alpha=0,zorder=1)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;Angles&#39;</span><span class="p">:</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Degrees (º)&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Angle between Centroid and Line Segment&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">bin_edges</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;Distances to Centroid&#39;</span><span class="p">:</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Pixels&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Distance between Centroid and Line Segment&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">bin_edges</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="mi">10</span><span class="p">,</span><span class="n">endpoint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span>
+        <span class="c1">#ax1.set_xticks(np.linspace(0,130,10,endpoint=True,dtype=int))</span>
+        
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;Triangle Areas&#39;</span><span class="p">:</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Pixels&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Triangle Areas between Centroid and Line Segment&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+        <span class="c1">#ax1.set_xticks(np.linspace(0,bin_edges[-1],10,endpoint=True,dtype=int))</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">bin_edges</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="mi">10</span><span class="p">,</span><span class="n">endpoint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span>
+        
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;Line Lengths&#39;</span><span class="p">:</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Pixels&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Line Length&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">bin_edges</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="mi">10</span><span class="p">,</span><span class="n">endpoint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span>
+        <span class="c1">#ax1.set_xticks(np.linspace(0,170,10,endpoint=True,dtype=int))</span>
+        
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;Theta&#39;</span><span class="p">:</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Degrees (º)&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Line Segment Angle&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">bin_edges</span><span class="p">)</span>
+        
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;Angle Difference&#39;</span><span class="p">:</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Degrees (º)&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Angle Difference (º)&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">bin_edges</span><span class="p">)</span>
+        
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+    
+<div class="viewcode-block" id="plot_pie"><a class="viewcode-back" href="../../framework.html#framework.visualization.plot_pie">[docs]</a><span class="k">def</span> <span class="nf">plot_pie</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span><span class="n">Max</span><span class="p">):</span>
+    <span class="n">cmap</span> <span class="o">=</span> <span class="n">pltc</span><span class="o">.</span><span class="n">Reds</span>
+    <span class="k">global</span> <span class="n">new_cmap</span>
+    <span class="n">new_cmap</span> <span class="o">=</span> <span class="n">truncate_colormap</span><span class="p">(</span><span class="n">cmap</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">300</span><span class="p">)</span>
+    
+    <span class="k">global</span> <span class="n">data</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">ImageLinesDF</span><span class="o">.</span><span class="n">tail</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    
+    
+    <span class="c1"># Pie chart</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">feat</span><span class="p">,</span> <span class="s1">&#39;-&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">feat</span> <span class="o">==</span> <span class="s1">&#39;Number of Lines&#39;</span><span class="p">:</span>
+        <span class="n">sizes</span> <span class="o">=</span> <span class="p">[</span><span class="n">data</span><span class="p">[</span><span class="n">feat</span><span class="p">][</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">Max</span><span class="p">]</span>
+        
+    <span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="n">new_cmap</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Max</span><span class="p">)(</span><span class="n">data</span><span class="p">[</span><span class="n">feat</span><span class="p">][</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]]),</span> <span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.7</span><span class="p">),</span><span class="s1">&#39;w&#39;</span><span class="p">]</span>
+
+    <span class="n">fig1</span><span class="p">,</span> <span class="n">ax1</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">pie</span><span class="p">(</span><span class="n">sizes</span><span class="p">,</span> <span class="n">colors</span> <span class="o">=</span> <span class="n">colors</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="p">[</span><span class="n">sizes</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;-&#39;</span><span class="p">],</span> <span class="n">startangle</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
+    <span class="c1">#draw circle</span>
+    <span class="n">centre_circle</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">Circle</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span><span class="mf">0.70</span><span class="p">,</span><span class="n">fc</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">,</span><span class="n">ec</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">)</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gcf</span><span class="p">()</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">centre_circle</span><span class="p">)</span>
+    <span class="c1"># Equal aspect ratio ensures that pie is drawn as a circle</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>  
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Diogo Fróis Vieira.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
