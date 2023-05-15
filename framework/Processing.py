@@ -500,14 +500,14 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     graph,CNFs,shollhist = cyto_graph_features(mesqueleto_norm,features,[x_,y_],[aux_n_,centroid,cr],mask,False)
     
 #     # PROCESSING: Others
-    cncd = Others(aux_f,aux_n)
+    cncd = Others(cyto_norm,mndeconv_norm)
 
     # Add to DataFrame
     global ResultsDF,new
     if 'ResultsDF' not in globals():
-        ResultsDF = pd.DataFrame(columns = ['Name'] + ['Img Index'] + ['Label'] + ['Mask'] + ['Patches'] + ['Nucleus Contour'] + ['Nucleus Centroid'] + ['Cytoskeleton Centroid'] + ['Lines'] + [xç for xç,yç in LSFs] + list(feats_labels_n_) + [xg for xg,yg in CNFs])
+        ResultsDF = pd.DataFrame(columns = ['Name'] + ['Img Index'] + ['Label'] + ['Mask'] + ['Patch:Skeleton'] + ['Patch:Deconvoluted Cyto'] + ['Patch:Deconvoluted Nucl'] + ['Patch:Skeleton Max'] + ['Patches'] + ['Nucleus Contour'] + ['Nucleus Centroid'] + ['Cytoskeleton Centroid'] + ['Lines'] + [xç for xç,yç in LSFs] + list(feats_labels_n_) + [xg for xg,yg in CNFs])
         
-    new       = pd.Series([name] + [img_id] + [label] + [mask] + [[patch,patch_f_norm,patch_n_norm,mesqueleto,x_,y_]] + [cr] + [centroid] + [cytocenter] + [lines] +  [yç for xç,yç in LSFs] + feats_values_n_ + [yg for xg,yg in CNFs], index=ResultsDF.columns)
+    new       = pd.Series([name] + [img_id] + [label] + [mask] + [patch] + [patch_f_norm] + [patch_n_norm] + [mesqueleto] + [[x_,y_]] + [cr] + [centroid] + [cytocenter] + [lines] +  [yç for xç,yç in LSFs] + feats_values_n_ + [yg for xg,yg in CNFs], index=ResultsDF.columns)
 
     ResultsDF = pd.concat([ResultsDF,new.to_frame().T],axis=0,ignore_index=True)
          
@@ -665,25 +665,27 @@ def cyto_graph_features(sk,features,infocyto,infonucl,mask,plot): #old graphanal
     br_type_nams = ['Endpoint-to-endpoint (isolated branch)','Junction-to-endpoints','Junction-to-junctions','Isolated cycles']
     
     for typ in np.unique(branch_data['branch-type']):
-        br_type_data = branch_data[branch_data['branch-type'] == typ]
-        
-        CNFs += [(str('CNF1D:Number of ') + str(br_type_nams[typ]),len(br_type_data)),
-                (str('CNF1D:Ratio of ') + str(br_type_nams[typ]),len(br_type_data)/Npaths)]
-        
-        for col_ in cols:
-            CNFs += [(str('CNF1D:Mean of ') + str(br_type_nams[typ]) + str(' ') + str(col_),np.mean(br_type_data[col_])),
-                    (str('CNF1D:Std of ') + str(br_type_nams[typ]) + str(' ') + str(col_),np.std(br_type_data[col_]))]
+        if any(br_type_nams[typ] in string for string in features):
+            br_type_data = branch_data[branch_data['branch-type'] == typ]
+
+            CNFs += [(str('CNF1D:Number of ') + str(br_type_nams[typ]),len(br_type_data)),
+                    (str('CNF1D:Ratio of ') + str(br_type_nams[typ]),len(br_type_data)/Npaths)]
+
+            for col_ in cols:
+                CNFs += [(str('CNF1D:Mean of ') + str(br_type_nams[typ]) + str(' ') + str(col_),np.mean(br_type_data[col_])),
+                        (str('CNF1D:Std of ') + str(br_type_nams[typ]) + str(' ') + str(col_),np.std(br_type_data[col_]))]
             
     # Handle Isolated cycles
-    if 3 not in np.unique(branch_data['branch-type']): 
-        data = np.zeros_like(branch_data[branch_data['branch-type'] == 1])
-        
-        CNFs += [(str('CNF1D:Number of ') + str(br_type_nams[3]),0),
-                (str('CNF1D:Ratio of ') + str(br_type_nams[3]),0)]
-        
-        for col_ in cols:
-            CNFs += [(str('CNF1D:Mean of ') + str(br_type_nams[3]) + str(' ') + str(col_),0),
-                    (str('CNF1D:Std of ') + str(br_type_nams[3]) + str(' ') + str(col_),0)]
+    if any(br_type_nams[3] in string for string in features):
+        if 3 not in np.unique(branch_data['branch-type']): 
+            data = np.zeros_like(branch_data[branch_data['branch-type'] == 1])
+
+            CNFs += [(str('CNF1D:Number of ') + str(br_type_nams[3]),0),
+                    (str('CNF1D:Ratio of ') + str(br_type_nams[3]),0)]
+
+            for col_ in cols:
+                CNFs += [(str('CNF1D:Mean of ') + str(br_type_nams[3]) + str(' ') + str(col_),0),
+                        (str('CNF1D:Std of ') + str(br_type_nams[3]) + str(' ') + str(col_),0)]
         
     #br_type_lens = [len(branch_data[branch_data['branch-type'] == typ]) for typ in np.unique(branch_data['branch-type'] )]
     
@@ -785,10 +787,10 @@ def sholl(img,cyto_info,nuclei_info):
         cross = tab['crossings']
         if c == 0:
             prefix = "CNF1D:Sholl Crossings Cyto"
-            c += 1
         if c == 1:
             prefix = "CNF1D:Sholl Crossings Nucl"
             
+        c += 1
         sholl_feats = sholl_feats + statistics_from_2D_features(prefix,cross)
 
     

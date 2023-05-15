@@ -296,6 +296,7 @@ class ImageFeatures:
             if skel.all() != None:
                 self.skel = skel
         except:
+            print('erro')
             pass
             
         if self.dim == 3:

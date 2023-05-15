@@ -57,7 +57,7 @@ import scipy as sp
 import scipy.sparse
 from matplotlib.patches import Circle
 from framework.ImageFeatures import ImageFeatures,getvoxelsize
-from framework.Functions import FeaturesFromCentroid, cv2toski,pylsdtoski,polar_to_cartesian, truncate_colormap, plot_hist, plot_pie, remove_not1D, quantitative_analysis,hist_bin,hist_lim,create_separate_DFs,branch,graphAnalysis
+#from framework.Functions import  cv2toski,pylsdtoski,polar_to_cartesian, truncate_colormap, plot_hist, plot_pie, remove_not1D, quantitative_analysis,hist_bin,hist_lim,create_separate_DFs,branch,graphAnalysis
 from framework.Importing import label_image,init_import
 from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
 from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
@@ -84,6 +84,7 @@ def plot_barplot(data):
     #     colors   = ["#2ECC71","#DECF77","#5AB7BD","#FFA500","#E74C3C","#BC544B",]
     #     labels   = ['WT','No transfection','Mock','Dup41_46','Del38_46','Mut394']
     #     pairs    = [(('WT', 'No transfection')),(('WT', 'Mock')),(('WT', 'Dup41_46')), (('WT', 'Del38_46')), (('WT', 'Mut394'))] 
+    
 
 
     for f in cols:
@@ -92,15 +93,24 @@ def plot_barplot(data):
         except: 
             continue
 
+        print(ResultsDF.groupby(['Label']).describe()[[(f,'mean'),(f,'std')]])
 
 
 
         fig,ax = plt.subplots()
         sns.set_theme(style="white")
         # 4
-        sns.barplot(x="Label", y=f, data=data,order=['WT','Dup41_46','Del38_46','Mut394'],capsize=.1,ci=95,edgecolor=colors,fill=False,linewidth=2)
+        sns.barplot(x="Label", y=f, data=data,order=['WT','Dup41_46','Del38_46','Mut394'],capsize=.1,errorbar=('ci', 95),edgecolor=colors,fill=False,linewidth=2)
+        
+
+        
+        #cis = [container.get_yerr()[1]/2 for container in containers]
+        
         ax.set_xticks(ax.get_xticks(),labels,font='arial',color='k')
         ax.set_yticks(ax.get_yticks(),font='arial',color='k')
+        
+
+
 
         patches = ax.patches
         lines_per_err = 3
@@ -120,6 +130,8 @@ def plot_barplot(data):
 
 
         plt.show()
+        
+        
         
 def plot_generalized(LinesDF):
     labels  = list(np.unique(LinesDF['Label']))
