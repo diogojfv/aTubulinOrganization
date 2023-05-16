@@ -277,7 +277,14 @@ def getvoxelsize(folder):
     return zres,xres,yres
 
 def getAAI(patch):
-    aga       = np.histogram(255 * (patch/np.max(patch)),bins=256)
+    """
+    Calculate Average Actin Intensity:
+        - patch: image of skeleton with intensities
+    """
+    
+    from scipy.signal import argrelextrema
+    
+    aga       = np.histogram(patch,bins=256)
     local_min = argrelextrema(aga[0], np.less)[0]
     AAI       = np.sum(aga[0][local_min[0]:local_min[-1]] * aga[1][local_min[0]:local_min[-1]]) / len(np.where(patch != 0)[0])
     
@@ -286,18 +293,19 @@ def getAAI(patch):
 
 class ImageFeatures:
     
-    def __init__(self, img, skel, original_folder):
+    def __init__(self, img, skel, listfeats, original_folder):
         # Image and Binary Image
         self.img = img
+        self.img_8bit = (img*255).astype(np.uint8)
         self.bin_img = (img!=0)*1
+        self.listfeats = listfeats
         self.original_folder = original_folder
         self.dim = len(img.shape)
-        try:
-            if skel.all() != None:
-                self.skel = skel
-        except:
-            print('erro')
-            pass
+#         try:
+        self.skel = skel
+#         except:
+#             print('erro')
+#             pass
             
         if self.dim == 3:
             self.spacing    = (getvoxelsize(original_folder)[0],getvoxelsize(original_folder)[1],getvoxelsize(original_folder)[2])
@@ -319,32 +327,33 @@ class ImageFeatures:
         
         # --- GLCM
 #         try:
-            #self.glcm   = graycomatrix(img, distances=[1], angles=[0, np.pi/4, np.pi/2, 3*np.pi/4], levels=self.n_level, normed = True)
-#         self.glcm   = graycomatrix(self.img, distances=[1], angles=[0, np.pi/4, np.pi/2, 3*np.pi/4], levels=256, normed = True) 
-#         matrix      = np.sum(self.glcm, axis = 3) / 4 #makes the matrix invariant as it sums all the elements for different angles
-#         self.matrix = np.ndarray((256,256,1,1)) #keeps it 4-dimensional
-#         self.matrix[:,:,:,0] = matrix
+
+        self.glcm   = graycomatrix(self.img_8bit, distances=[1], angles=[0, np.pi/4, np.pi/2, 3*np.pi/4], levels=256, normed = True)
+        #self.glcm   = graycomatrix(self.img, distances=[1], angles=[0, np.pi/4, np.pi/2, 3*np.pi/4], levels=256, normed = True) 
+        matrix      = np.sum(self.glcm, axis = 3) / 4 #makes the matrix invariant as it sums all the elements for different angles
+        self.matrix = np.ndarray((256,256,1,1)) #keeps it 4-dimensional
+        self.matrix[:,:,:,0] = matrix
 #         except:
 #             pass
         
         # --- Freq
-        try:
-            # prepare filter bank kernels
-            kernels     = []
-            powers      = []
-            frequencies = np.array([0.1,0.2,0.3,0.4]) #4 frequencies
-            for theta in range(4):
-                theta = theta / 4. * np.pi #4 angles
-                for frequency in frequencies: #a total of 16 filters
-                    kernel_temp = gabor_kernel(frequency, theta = theta)
-                    power_img = self.power_calc(img,kernel_temp)
-                    powers.append (np.mean(power_img))
-                    #save only real kernel
-                    kernels.append(np.real(kernel_temp)) 
-            self.powers  = powers
-            self.kernels = kernels
-        except:
-            pass
+#         try:
+        # prepare filter bank kernels
+        kernels     = []
+        powers      = []
+        frequencies = np.array([0.1,0.2,0.3,0.4]) #4 frequencies
+        for theta in range(4):
+            theta = theta / 4. * np.pi #4 angles
+            for frequency in frequencies: #a total of 16 filters
+                kernel_temp = gabor_kernel(frequency, theta = theta)
+                power_img = self.power_calc(img,kernel_temp)
+                powers.append (np.mean(power_img))
+                #save only real kernel
+                kernels.append(np.real(kernel_temp)) 
+        self.powers  = powers
+        self.kernels = kernels
+#         except:
+#             pass
 
         # Compute features
         self.features = self._calc_features()
@@ -410,11 +419,15 @@ class ImageFeatures:
             
         
 
-        
         # CENTROID
-        features['Centroid']              = [round(x,3) for x in props[0].centroid] #Centroid coordinate tuple.
-        features['Weighted Centroid']     = [round(x,3) for x in props[0].weighted_centroid]  #Centroid coordinate tuple (row, col) weighted with intensity image.
-        features['Centroid Divergence']   = np.linalg.norm(np.array(features['Centroid']) - np.array(features['Weighted Centroid']))
+        if any('Centroid' in string for string in self.listfeats):
+            features['Centroid']              = [round(x,3) for x in props[0].centroid] 
+        if any('Weighted Centroid' in string for string in self.listfeats):
+            features['Weighted Centroid']     = [round(x,3) for x in props[0].weighted_centroid]  
+        if any('Centroid Divergence' in string for string in self.listfeats):  
+            features['Centroid Divergence']   = np.linalg.norm(np.array(features['Centroid']) - np.array(features['Weighted Centroid']))
+        
+        # etc... com os anys
         features['Equivalent Diameter']   = props[0].equivalent_diameter #The diameter of a circle with the same area as the region.
         features['Extent']                = props[0].extent
         features['Major Axis Length']     = props[0].major_axis_length #The length of the major axis of the ellipse that has the same normalized second central moments as the region.
@@ -486,10 +499,8 @@ class ImageFeatures:
 #             features['Feret Diameter Max']  = props[0].feret_diameter_max
 #         except:
 #             features['Feret Diameter Max']  = 0
-#         try:
-#             features['Crofton Perimeter']   = props[0].perimeter_crofton
-#         except:
-#             features['Crofton Perimeter']   = 0
+
+        features['Crofton Perimeter']   = props[0].perimeter_crofton
         
         # --- INTENSITY
         features['Mean Intensity'] = np.mean(self.imgzero) #mean intensity of image
@@ -501,81 +512,122 @@ class ImageFeatures:
         features['Max Intensity']  = props[0].max_intensity #Value with the greatest intensity in the region.
         features['Min Intensity']  = props[0].min_intensity #Value with the greatest intensity in the region.
         features['Entropy']        = shannon_entropy(self.img, base=2) #The Shannon entropy is defined as S = -sum(pk * log(pk)), where pk are frequency/probability of pixels of value k.
-#         features['Inertia Tensor Highest Eigenvalue'] = props[0].inertia_tensor_eigvals[0]
-#         features['Inertia Tensor Lowest Eigenvalue'] = props[0].inertia_tensor_eigvals[1]
+        features['Inertia Tensor Highest Eigenvalue'] = props[0].inertia_tensor_eigvals[0]
+        features['Inertia Tensor Lowest Eigenvalue'] = props[0].inertia_tensor_eigvals[1]
         features['CV'] = features['Std'] / features['Mean Intensity']
         
-        try:
-            features['AAI'] = getAAI(self.skel)
-        except:
-            pass
-    
-    
-    
-    
-#         # --- GLCM
-#         try:
-#             unif   = []
-#             ent    = []
-#             matrix = self.matrix[:,:,0,0]
-#             for i in np.arange(self.glcm.shape[3]):
-#                 mat          = self.glcm[:,:,0,i]
-#                 feature_unif = (mat ** 2).sum()
-#                 unif.append(feature_unif)
-#                 feature_ent  = shannon_entropy(mat)
-#                 ent.append(feature_ent)   
 
-#             features['Uniformity']              = list(unif) #uniformity for each matrix/angle
-#             features['Invariant Uniformity']    = (matrix ** 2).sum()
-#             features['GLCM Entropy']            = list(ent) #same, but for entropy
-#             features['GLCM Invariant Entropy']  = shannon_entropy(matrix)
-#             features['Correlation']             = graycoprops(self.glcm, 'correlation')[0]
-#             features['Invariant Correlation']   = float(graycoprops(self.matrix, 'correlation')[0][0])
-#             features['Dissimilarity']           = graycoprops(self.glcm, 'dissimilarity')[0]
-#             features['Invariant Dissimilarity'] = float(graycoprops(self.matrix, 'dissimilarity')[0][0])                  
-#             features['Contrast']                = graycoprops(self.glcm, 'contrast')[0]
-#             features['Invariant Contrast']      = float(graycoprops(self.matrix, 'contrast')[0][0])
-#             features['Homogeneity']             = graycoprops(self.glcm, 'homogeneity')[0]
-#             features['Invariant Homogeneity']   = float(graycoprops(self.matrix, 'homogeneity')[0][0])
-#             features['Energy']                  = graycoprops(self.glcm, 'energy')[0]
-#             features['Invariant Energy']        = float(graycoprops(self.matrix, 'energy')[0][0])
-#         except:
-#             pass
+        if any('AAI' in string for string in self.listfeats):
+            if type(self.skel) != str:
+                features['AAI'] = getAAI(self.skel)
+
+    
+    
+    
+    
+        # --- GLCM
+#     try:
+        unif   = []
+        ent    = []
+        matrix = self.matrix[:,:,0,0]
+        for i in np.arange(self.glcm.shape[3]):
+            mat          = self.glcm[:,:,0,i]
+            feature_unif = (mat ** 2).sum()
+            unif.append(feature_unif)
+            feature_ent  = shannon_entropy(mat)
+            ent.append(feature_ent)   
+
+        # UNIFORMITY
+        if any('Uniformity' in string for string in self.listfeats):
+            features['Uniformity']              = list(unif) #uniformity for each matrix/angle
+        
+        # INVARIANT UNIFORMITY
+        if any('Invariant Uniformity' in string for string in self.listfeats):
+            features['Invariant Uniformity']    = (matrix ** 2).sum()
+        
+        # GLCM ENTROPY
+        if any('GLCM Entropy' in string for string in self.listfeats):
+            features['GLCM Entropy']            = list(ent) #same, but for entropy
+        
+        # GLCM INVARIANT ENTROPY
+        if any('GLCM Invariant Entropy' in string for string in self.listfeats):
+            features['GLCM Invariant Entropy']  = shannon_entropy(matrix)
+        
+        # CORRELATION
+        if any('Correlation' in string for string in self.listfeats):
+            features['Correlation']             = graycoprops(self.glcm, 'correlation')[0]
+        
+        # INVARIANT CORRELATION
+        if any('Invariant Correlation' in string for string in self.listfeats):
+            features['Invariant Correlation']   = float(graycoprops(self.matrix, 'correlation')[0][0])
+        
+        # DISSIMILARITY
+        if any('Dissimilarity' in string for string in self.listfeats):
+            features['Dissimilarity']           = graycoprops(self.glcm, 'dissimilarity')[0]
+        
+        # INVARIANT DISSIMILARITY
+        if any('Invariant Dissimilarity' in string for string in self.listfeats):
+            features['Invariant Dissimilarity'] = float(graycoprops(self.matrix, 'dissimilarity')[0][0])   
+        
+        # CONTRAST
+        if any('Contrast' in string for string in self.listfeats):
+            features['Contrast']                = graycoprops(self.glcm, 'contrast')[0]
+        
+        # INVARIANT CONTRAST
+        if any('Invariant Contrast' in string for string in self.listfeats):
+            features['Invariant Contrast']      = float(graycoprops(self.matrix, 'contrast')[0][0])
+        
+        # HOMOGENEITY
+        if any('Homogeneity' in string for string in self.listfeats):
+            features['Homogeneity']             = graycoprops(self.glcm, 'homogeneity')[0]
+        
+        # INVARIANT HOMOGENEITY
+        if any('Invariant Homogeneity' in string for string in self.listfeats):
+            features['Invariant Homogeneity']   = float(graycoprops(self.matrix, 'homogeneity')[0][0])
+        
+        # ENERGY
+        if any('Energy' in string for string in self.listfeats):
+            features['Energy']                  = graycoprops(self.glcm, 'energy')[0]
+        
+        # INVARIANT ENERGY
+        if any('Invariant Energy' in string for string in self.listfeats):
+            features['Invariant Energy']        = float(graycoprops(self.matrix, 'energy')[0][0])
+
 
         
         
-#         # --- Freq
-#         # Gabor
+        # --- Freq
+        # Gabor
 #         try:
-#             features['Mean Gabor Power'] = mean(self.powers)
+        features['Mean Gabor Power'] = mean(self.powers)
 
-#             f_var,f_mean,f_energy,f_ent    = [],[],[],[]
-#             for k, kernel in enumerate(self.kernels):
-#                 filtered = ndi.convolve(self.img, kernel, mode='wrap')
-#                 f_mean.append(np.mean(filtered))
-#                 f_var.append(np.var(filtered))
-#                 f_energy.append(np.sum(np.power(filtered.ravel(),2))/len(filtered.ravel()))
-#                 f_ent.append(shannon_entropy(filtered))
+        f_var,f_mean,f_energy,f_ent    = [],[],[],[]
+        for k, kernel in enumerate(self.kernels):
+            filtered = ndi.convolve(self.img, kernel, mode='wrap')
+            f_mean.append(np.mean(filtered))
+            f_var.append(np.var(filtered))
+            f_energy.append(np.sum(np.power(filtered.ravel(),2))/len(filtered.ravel()))
+            f_ent.append(shannon_entropy(filtered))
 
-#             features['Gabor Variance'] = mean(f_var)
-#             features['Gabor Mean']     = mean(f_mean)
-#             features['Gabor Energy']   = mean(f_energy)
-#             features['Gabor Entropy']  = mean(f_ent)
+        features['Gabor Variance'] = mean(f_var)
+        features['Gabor Mean']     = mean(f_mean)
+        features['Gabor Energy']   = mean(f_energy)
+        features['Gabor Entropy']  = mean(f_ent)
 
-#             # --- FFT
-#             f                  = np.fft.fft2(self.img)
-#             fshift             = np.fft.fftshift(f)
-#             magnitude_spectrum = 20*np.log(np.abs(fshift))
+        # --- FFT
+        f                  = np.fft.fft2(self.img)
+        fshift             = np.fft.fftshift(f)
+        magnitude_spectrum = 20*np.log(np.abs(fshift))
 
-#             features['Mean Spectral Magnitude'] = np.mean(magnitude_spectrum) #in dB
+        features['Mean Spectral Magnitude'] = np.mean(magnitude_spectrum) #in dB
 
-#             # --- Welch
-#             f_psd, Pxx = signal.welch(self.img)
-#             sum_fp     = np.multiply(f_psd, Pxx)
-#             sum_int    = np.sum(Pxx)
-#             mean_pxx   = np.sum(sum_fp)/sum_int
+        # --- Welch
+        f_psd, Pxx = signal.welch(self.img)
+        sum_fp     = np.multiply(f_psd, Pxx)
+        sum_int    = np.sum(Pxx)
+        mean_pxx   = np.sum(sum_fp)/sum_int
 
-#             features['Mean Spectral Power'] = mean_pxx
+        features['Mean Spectral Power'] = mean_pxx
 
 #             for k in features.keys():
 #                 try:
@@ -586,30 +638,31 @@ class ImageFeatures:
 #             pass
         
         
-#         # Fractal Dimension
-#         try:
-#             b_n,d_n = fractal_dimension_grayscale(self.img)
-# #             features['DCF:Fractal Dim Grayscale'] = 
-#             fractal_values_n_b = [round(b_n)]
-#             features['Fractal Dim B Skeleton'] = fractal_values_n_b
-#             fractal_values_n_d = [round(d_n)] 
-#             features['Fractal Dim D Skeleton'] = fractal_values_n_d
+        # Fractal Dimension
+        # Deconvoluted
+#         FD_b,FD_d = fractal_dimension_grayscale(self.img)
+#         fractal_values_n_b = [round(FD_b)]
+#         features['Fractal Dimension B Deconvoluted'] = fractal_values_n_b
+#         fractal_values_n_d = [round(FD_d)] 
+#         features['Fractal Dimension D Deconvoluted'] = fractal_values_n_d
+        
+        # Skeleton
+        if type(self.skel) != str:
+            FD_skel = fractal_dimension((self.skel>0)*1)
+            features['Fractal Dimension Skeleton'] = FD_skel
 #         except:
 #             pass
         
-#         try:
-#             fd_nuc  = [fractal_dimension(self.img)]
-#             features['Fractal Dim Skeleton'] = fd_nuc
-#         except:
-#             pass
+
+
         if self.dim == 3:
-            if 100*(features['Volume convex'] - features['Volume'])/features['Volume'] > 200:
+            if 100*(features['Volume convex'] - features['Volume'])/features['Volume'] > 250:
                 print('Volume convex exceeded 200%')
                 features = {}
                 return features
         if self.dim == 2:
-            if 100*(features['Area convex'] - features['Area'])/features['Area'] > 200:
-                print('Area convex exceeded 200%')
+            if 100*(features['Area convex'] - features['Area'])/features['Area'] > 250:
+                print('Area convex exceeded 200%, precisely: ' + str(100*(features['Area convex'] - features['Area'])/features['Area']))
                 features = {}
                 return features
             

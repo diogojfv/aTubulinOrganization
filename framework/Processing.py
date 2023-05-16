@@ -417,10 +417,10 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
         ndeconv = data['NUCL_DECONV']['Image'][img_id]
         
         cyto        = mask * cdeconv
-        cyto_norm   = mask * (cdeconv / np.max(cdeconv)) / np.max(cyto) #aux_f
+        cyto_norm   = (cyto-np.min(cyto))/(np.max(cyto)-np.min(cyto)) #cyto_norm   = mask * (cdeconv / np.max(cdeconv)) / np.max(cyto) #aux_f
         ndeconv         = mask * ndeconv
-        mndeconv_norm   = mask * (ndeconv / np.max(ndeconv)) / np.max(ndeconv)
-    if algorithm_cyto == 'rgb':
+        ndeconv_norm   = (ndeconv-np.min(ndeconv))/(np.max(ndeconv)-np.min(ndeconv)) #ndeconv_norm   = mask * (ndeconv / np.max(ndeconv)) / np.max(ndeconv)
+    if algorithm_cyto == 'rgb': #TALVEZ MUDAR O CYTO_NORM
         rgb     = data['RGB']['Image'][img_id]
         rgb[:,:,0] = 0
         rgb[:,:,1] = 0
@@ -433,7 +433,7 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     
     if algorithm_cyto == 'deconvoluted':
         mesqueleto_int  = mesqueleto * cdeconv
-        mesqueleto_norm = mesqueleto * (cdeconv / np.max(cdeconv)) / np.max(cyto)
+        mesqueleto_norm = mesqueleto * cyto_norm
     if algorithm_cyto == 'rgb':
         mesqueleto_int  = mesqueleto * orig_cysk
         mesqueleto_norm = mesqueleto * orig_cysk / np.max(orig_cysk) 
@@ -448,13 +448,13 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     # DECONVOLUTED CYTOSKELETON PATCH
     global x_f,y_f,patch_f,aux_f      #  = 
     x_f,y_f = np.where(cyto_norm != 0)
-    patch_f_norm = cyto_norm[min(x_f):max(x_f),min(y_f):max(y_f)]
-    #patch_f_norm = patch_f / np.max(patch_f)
+    patch_cyto_norm = cyto_norm[min(x_f):max(x_f),min(y_f):max(y_f)]
+    #patch_cyto_norm = patch_f / np.max(patch_f)
     
     # GET and PLOT centroid
     centroid_id,centroid = ROI_centroid(data,img_id,[x_,y_])
      
-    # Deconvoluted nuclei patch
+    # DECONVOLUTED NUCLEUS PATCH
     if algorithm_cyto == 'deconvoluted':
         aux_n = np.zeros_like(ndeconv)
         rownuc = data['NUCL_PRE'].loc[centroid_id]
@@ -462,9 +462,7 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
         #a = list(zip(rownuc['Nucleus Mask'][0],rownuc['Nucleus Mask'][1]))
         aux_n[rownuc['Nucleus Mask'][0],rownuc['Nucleus Mask'][1]] = 1
         
-        aux_n_ = aux_n * ndeconv / np.max(ndeconv)
-        aux_n_ = aux_n_ / np.max(aux_n_)
-
+        aux_n_ = aux_n * ndeconv_norm
 
         try:
             contourr = data['NUCL_PRE'].loc[centroid_id]['Contour'] 
@@ -483,13 +481,14 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     
 
     # PROCESSING: **CYTOSKELETONS**
-    feats_all                    = ImageFeatures((patch_f_norm *255).astype(np.uint8),mesqueleto_norm[min(x_):max(x_),min(y_):max(y_)],data['CYTO_DECONV'].loc[img_id]['Path'])
+    #skel antes era mesqueleto_norm[min(x_):max(x_),min(y_):max(y_)]
+    feats_all                    = ImageFeatures(cyto_norm,mesqueleto_norm,features,data['CYTO_DECONV'].loc[img_id]['Path'])
     feats_labels_, feats_values_ = feats_all.print_features(print_values = False)
     feats_labels_, feats_values_ = remove_not1D(feats_labels_,feats_values_)
     feats_labels_                = ['DCF:' + ftf for ftf in feats_labels_]
  
     # PROCESSING: **NUCLEI**
-    feats_all_n                      = ImageFeatures((patch_n_norm *255).astype(np.uint8),None,data['NUCL_DECONV'].loc[img_id]['Path'])
+    feats_all_n                      = ImageFeatures(ndeconv_norm,'None',features,data['NUCL_DECONV'].loc[img_id]['Path'])
     feats_labels_n_, feats_values_n_ = feats_all_n.print_features(print_values = False)
     feats_labels_n_, feats_values_n_ = remove_not1D(feats_labels_n_,feats_values_n_)
     feats_labels_n_                  = ['DNF:' + ftn for ftn in feats_labels_n_]
@@ -500,14 +499,14 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     graph,CNFs,shollhist = cyto_graph_features(mesqueleto_norm,features,[x_,y_],[aux_n_,centroid,cr],mask,False)
     
 #     # PROCESSING: Others
-    cncd = Others(cyto_norm,mndeconv_norm)
+    cncd = Others(cyto_norm,ndeconv_norm)
 
     # Add to DataFrame
     global ResultsDF,new
     if 'ResultsDF' not in globals():
-        ResultsDF = pd.DataFrame(columns = ['Name'] + ['Img Index'] + ['Label'] + ['Mask'] + ['Patch:Skeleton'] + ['Patch:Deconvoluted Cyto'] + ['Patch:Deconvoluted Nucl'] + ['Patch:Skeleton Max'] + ['Patches'] + ['Nucleus Contour'] + ['Nucleus Centroid'] + ['Cytoskeleton Centroid'] + ['Lines'] + [xç for xç,yç in LSFs] + list(feats_labels_n_) + [xg for xg,yg in CNFs])
+        ResultsDF = pd.DataFrame(columns = ['Name'] + ['Img Index'] + ['Label'] + ['Mask'] + ['Patch:Skeleton'] + ['Patch:Deconvoluted Cyto'] + ['Patch:Deconvoluted Nucl'] + ['Patch:Skeleton Max'] + ['Offset'] + ['Nucleus Contour'] + ['Nucleus Centroid'] + ['Cytoskeleton Centroid'] + ['Lines'] + [xç for xç,yç in LSFs] + list(feats_labels_) + list(feats_labels_n_) + [xg for xg,yg in CNFs])
         
-    new       = pd.Series([name] + [img_id] + [label] + [mask] + [patch] + [patch_f_norm] + [patch_n_norm] + [mesqueleto] + [[x_,y_]] + [cr] + [centroid] + [cytocenter] + [lines] +  [yç for xç,yç in LSFs] + feats_values_n_ + [yg for xg,yg in CNFs], index=ResultsDF.columns)
+    new       = pd.Series([name] + [img_id] + [label] + [mask] + [patch] + [patch_cyto_norm] + [patch_n_norm] + [mesqueleto] + [[x_,y_]] + [cr] + [centroid] + [cytocenter] + [lines] +  [yç for xç,yç in LSFs] + feats_values_ + feats_values_n_ + [yg for xg,yg in CNFs], index=ResultsDF.columns)
 
     ResultsDF = pd.concat([ResultsDF,new.to_frame().T],axis=0,ignore_index=True)
          
@@ -1284,7 +1283,7 @@ def radialscore(lines,gridpoints,x_,y_):
                                                                                          
 #     return lines, median_points, centroid_list, centroid, cytocenter, radialSC_pos, features2D, features1D
 
-def df_analyze_cell(data,ROIsDF):
+def df_analyze_cell(data,ROIsDF,specs,features):
     # Get labels and remove synthetic images
     labels  = list(np.unique(ROIsDF['Label']))
     try:
@@ -1292,15 +1291,18 @@ def df_analyze_cell(data,ROIsDF):
     except:
         pass
 
-    count = 0
-    for index,row in ROIsDF.iterrows():
+    count = 52
+    for index,row in ROIsDF[count:].iterrows():
         # Analyse cell from ROI
         #ResultsDF = analyze_cell([skeleton, row['Index']],row['ROImask'],[2,2.5,1],Centroids[row['Index']],OriginalDF,DeconvDF,NucleiDeconvDF,'deconvoluted',False)
-        ResultsDF = analyze_cell(row,data,algorithm_cyto,algorithm_nuclei,LSFparams,features,plot)
+        ResultsDF = analyze_cell(row,data,specs['algorithm_cyto'],specs['algorithm_nucl'],specs['LSFparams'],features)
         
         # Print progress
-        print(">>> Progress: " + round((count / len(ROIs))*100) + "%")
+        print(">>> Progress: " + str(round((count / len(ROIsDF))*100,3)) + "%",count)
         count += 1
+        
+#         if count == 500:
+#             break
 
     return ResultsDF
 

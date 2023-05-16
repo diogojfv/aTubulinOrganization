@@ -109,8 +109,8 @@ def intensity_plotter(ResultsRow,data,save):
     ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5)
     
     # Set x and y lims and title
-    ax.set_ylim([min(ResultsRow['Patches'][4]),max(ResultsRow['Patches'][4])])
-    ax.set_xlim([min(ResultsRow['Patches'][5]),max(ResultsRow['Patches'][5])])
+    ax.set_ylim([min(ResultsRow['Offset'][0]),max(ResultsRow['Offset'][0])])
+    ax.set_xlim([min(ResultsRow['Offset'][1]),max(ResultsRow['Offset'][1])])
     
     # Scale Bar
     scalebar = ScaleBar(1,"px",color='k',box_alpha=0,dimension='pixel-length') 
@@ -145,8 +145,8 @@ def intensity_plotter(ResultsRow,data,save):
     #ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5,alpha=0.5)
          
     # Set x and y lims and title
-    ax.set_ylim([min(ResultsRow['Patches'][4]),max(ResultsRow['Patches'][4])])
-    ax.set_xlim([min(ResultsRow['Patches'][5]),max(ResultsRow['Patches'][5])])
+    ax.set_ylim([min(ResultsRow['Offset'][0]),max(ResultsRow['Offset'][0])])
+    ax.set_xlim([min(ResultsRow['Offset'][1]),max(ResultsRow['Offset'][1])])
     #ax.set_title(feat,fontsize=12)
     
     # Colorbar
@@ -245,7 +245,7 @@ def line_plotter(ResultsRow,TextureDF,feat,cmap,normalize_bounds,colorbar_label,
         ax.imshow(np.zeros((1040, 1388)),cmap='gray',alpha=0)
     if overlay == 'deconv':
         #ax.imshow(1-ResultsRow['Mask']*TextureDF['Skeleton'][ResultsRow['Img Index']],cmap='gray')
-        ax.imshow(np.max(ResultsRow['Patches'][1]) - ResultsRow['Patches'][1],cmap='gray',zorder=2)
+        ax.imshow(np.max(ResultsRow['Patch:Deconvoluted Cyto'][1]) - ResultsRow['Patch:Deconvoluted Cyto'][1],cmap='gray',zorder=2)
         
     ax.axis('off')
     
@@ -292,8 +292,8 @@ def line_plotter(ResultsRow,TextureDF,feat,cmap,normalize_bounds,colorbar_label,
 #     ax.add_artist(scalebar)
 
     # Set x and y lims and title
-    ax.set_ylim([min(ResultsRow['Patches'][4]),max(ResultsRow['Patches'][4])])
-    ax.set_xlim([min(ResultsRow['Patches'][5]),max(ResultsRow['Patches'][5])])
+    ax.set_ylim([min(ResultsRow['Offset'][0]),max(ResultsRow['Offset'][0])])
+    ax.set_xlim([min(ResultsRow['Offset'][1]),max(ResultsRow['Offset'][1])])
     #ax.set_title(feat,fontsize=12)
     
     # Adjust and Show
@@ -419,8 +419,8 @@ def graph_plotter(ResultsRow,data,cmap,feat,normalize_bounds,colorbar_label,node
 
     
     # Set x and y lims and title
-    ax.set_xlim([min(ResultsRow['Patches'][5]),max(ResultsRow['Patches'][5])])
-    ax.set_ylim([min(ResultsRow['Patches'][4]),max(ResultsRow['Patches'][4])])
+    ax.set_xlim([min(ResultsRow['Offset'][1]),max(ResultsRow['Offset'][1])])
+    ax.set_ylim([min(ResultsRow['Offset'][0]),max(ResultsRow['Offset'][0])])
     #ax.set_title(feat,fontsize=12)
     
     # Colorbar
