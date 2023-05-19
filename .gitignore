@@ -4,4 +4,5 @@ ResultsDF_LSD_Last2.p
 __pycache__/*
 framework/__pycache__/*
 framework/.ipynb_checkpoints/*
+build/CYSK/*
 
