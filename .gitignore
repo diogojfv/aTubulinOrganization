@@ -5,4 +5,5 @@ __pycache__/*
 framework/__pycache__/*
 framework/.ipynb_checkpoints/*
 build/CYSK/*
+Appendix/*
 

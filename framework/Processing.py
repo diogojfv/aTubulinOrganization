@@ -58,7 +58,7 @@ import scipy.sparse
 from matplotlib.patches import Circle
 from framework.ImageFeatures import ImageFeatures,getvoxelsize
 from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,create_separate_DFs,branch,graphAnalysis
-from framework.Importing import label_image,init_import
+from framework.Importing import label_image_soraia,init_import
 #from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
 #from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
 
@@ -95,12 +95,13 @@ def ROI_centroid(data,img_id,ROIcoords):
 
 def line_segment_features(features,original_img,img_index,mask,patch,xy,centroid,plot):
     """
+    - features     = list of features
     - original_img = original skeleton image
     - img_index    = image index
     - mask         = ROI mask of desired cell 
-    - patch        = np.array with skeleton p atch
+    - patch        = np.array with skeleton patch
     - xy           = [x_,y_] = [(x1,x2),(y1,y2)]
-    - centroids    = Centroids[image index] dataframe
+    - centroid     = Centroids[image index] dataframe
     """
     
     # Create flags
@@ -407,7 +408,7 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     # Useful variables:
     img_id  = rowROI['Index']
     name    = rowROI['Name']
-    label   = label_image(img_id)
+    label   = label_image_soraia(img_id)
     
     # 1040 x 1388
     mask    = rowROI['ROImask']
@@ -1291,11 +1292,15 @@ def df_analyze_cell(data,ROIsDF,specs,features):
     except:
         pass
 
-    count = 52
-    for index,row in ROIsDF[count:].iterrows():
+    count = 0
+    for index,row in ROIsDF.iterrows():
         # Analyse cell from ROI
         #ResultsDF = analyze_cell([skeleton, row['Index']],row['ROImask'],[2,2.5,1],Centroids[row['Index']],OriginalDF,DeconvDF,NucleiDeconvDF,'deconvoluted',False)
-        ResultsDF = analyze_cell(row,data,specs['algorithm_cyto'],specs['algorithm_nucl'],specs['LSFparams'],features)
+        try:
+            ResultsDF = analyze_cell(row,data,specs['algorithm_cyto'],specs['algorithm_nucl'],specs['LSFparams'],features)
+        except:
+            print('ERRO em ' + str(count))
+            pass
         
         # Print progress
         print(">>> Progress: " + str(round((count / len(ROIsDF))*100,3)) + "%",count)

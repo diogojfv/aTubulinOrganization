@@ -58,7 +58,7 @@ import scipy.sparse
 from matplotlib.patches import Circle
 from framework.ImageFeatures import ImageFeatures,getvoxelsize
 from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,create_separate_DFs,branch,graphAnalysis
-from framework.Importing import label_image,init_import
+from framework.Importing import label_image,label_image_soraia,init_import
 #from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
 from framework.Processing import process3Dnuclei,analyze_cell
 #from framework.visualization import truncate_colormap, plot_hist, plot_pie
@@ -85,6 +85,8 @@ def nuclei_segmentation(image,name,dir_nucldec,dir_masks,algorithm,algorithm_spe
     from tifffile import imread,imwrite
     
     if len(image.shape) == 2:
+        dim = 2
+    elif len(image.shape) == 2 and 'ch00' in name.split('_'):
         dim = 2
     elif len(image.shape) == 3 and name.split('_')[-1] == 'ch00.tif':
         dim = 3
@@ -142,15 +144,17 @@ def nuclei_segmentation(image,name,dir_nucldec,dir_masks,algorithm,algorithm_spe
             labels, details = model.predict_instances(img,prob_thresh=0.75,nms_thresh=0.3,verbose=True)
 
             # Remove outliers
-            labels_ = copy.deepcopy(labels)
-            N_excluded = 0
-            for vol_id in np.unique(labels_)[1:]:
-                u = labels_ == vol_id
-                u = u*vol_id
-                if len(np.where(u == vol_id)[0]) < algorithm_specs[1] or excludeborder(u) == True:
-                    labels_ = labels_ - u
-                    N_excluded += 1
-            print("Number of excluded nuclei: " + str(N_excluded))
+            #labels_ = copy.deepcopy(labels)
+            labels_ = remove_small_objects(labels, min_size=algorithm_specs[1])
+            
+#             N_excluded = 0
+#             for vol_id in np.unique(labels_)[1:]:
+#                 u = labels_ == vol_id
+#                 u = u*vol_id
+#                 if len(np.where(u == vol_id)[0]) < algorithm_specs[1] or excludeborder(u) == True:
+#                     labels_ = labels_ - u
+#                     N_excluded += 1
+#             print("Number of excluded nuclei: " + str(N_excluded))
 
             final = labels_
                     
@@ -361,7 +365,8 @@ def nuclei_preprocessing(image,name,dir_masks,plot,save):
     print(path)
     if dim == 2:
         try:
-            idx = path.split('/')[1].split('_')[1]
+            idx = name.split('_')[1] # DATASET SORAIA
+            #idx = path.split('/')[1].split('_')[1]
         except:
             idx = path.split('/')[-1].split('_')[2]
     if dim == 3:
@@ -418,7 +423,8 @@ def nuclei_preprocessing(image,name,dir_masks,plot,save):
 
 
         if dim == 2:
-            cent = round(props[0].centroid[0] + min(xp),3), round(props[0].centroid[1] + min(yp),3)
+            #cent = round(props[0].centroid[0] + min(xp),3), round(props[0].centroid[1] + min(yp),3)
+            cent = round(props[0].centroid[0],3), round(props[0].centroid[1],3)
         if dim == 3:
             #cent = round(props[0].centroid[2] + min(zp),3), round(props[0].centroid[0] + min(xp),3), round(props[0].centroid[1] + min(yp),3)
             cent = props[0].centroid[0], props[0].centroid[1], props[0].centroid[2]
@@ -428,7 +434,7 @@ def nuclei_preprocessing(image,name,dir_masks,plot,save):
         global new
         if 'NUCL_PRE' not in globals():
             NUCL_PRE = pd.DataFrame(columns = ['Img Index'] + ['Label'] + ['Nucleus Mask'] + ['Centroid'] + ['Contour']) 
-        new   = pd.Series([int(idx)] + [label_image(int(idx))] + [pixels] + [cent] + [contour],index=NUCL_PRE.columns)
+        new   = pd.Series([int(idx)] + [label_image_soraia(int(idx))] + [pixels] + [cent] + [contour],index=NUCL_PRE.columns)
         NUCL_PRE = pd.concat([NUCL_PRE,new.to_frame().T],axis=0,ignore_index=True)
         
         
@@ -488,6 +494,16 @@ def nuclei_preprocessing(image,name,dir_masks,plot,save):
     return NUCL_PRE
 
 def df_nuclei_preprocessing(NUCL_df,dir_nucldec,dir_masks,algorithm,algorithm_specs,plot,save):
+    """
+    Perform nuclei preprocessing on a dataframe.
+            - ```NUCL_df```: data['NUCL_DECONV'] or data['3D']
+            - ```dir_nucldec```: directory for dataset folder
+            - ```dir_masks```: directory to save the nuclei masks obtained
+            - ```algorithm```: contour
+            - ```algorithm_specs```: 
+            - ```plot```: wether to plot the results
+            - ```save```: save the result
+    """
     # Nuclei segmentation
     otsu_count = 0
     for index,row in NUCL_df.iterrows():

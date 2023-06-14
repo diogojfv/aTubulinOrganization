@@ -64,6 +64,23 @@ from framework.Processing import process3Dnuclei,analyze_cell
 
 #from fractal_dimension import fractal_dimension
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
+      
+def set_background(color): 
+    """
+    Set background color to a Jupyter Notebook cell
+        - ```color``` = HEX code of the input color (allows opacity)
+    """
+    
+    from IPython.display import HTML, display
+    script = (         
+        "var cell = this.closest('.code_cell');"         
+        "var editor = cell.querySelector('.input_area');"         
+        "editor.style.background='{}';"         
+        "this.parentNode.removeChild(this)"     
+    ).format(color)      
+    
+    display(HTML('<img src onerror="{}">'.format(script)))
+
 
 
 def plot_nuclei_contours(CentroidsDF,imgIndex,ax):

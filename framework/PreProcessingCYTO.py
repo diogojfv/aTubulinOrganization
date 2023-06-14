@@ -58,7 +58,7 @@ import scipy.sparse
 from matplotlib.patches import Circle
 from framework.ImageFeatures import ImageFeatures,getvoxelsize
 from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,create_separate_DFs,branch,graphAnalysis
-from framework.Importing import label_image,init_import
+from framework.Importing import label_image,label_image_soraia,init_import
 #from PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
 #from Processing import process3Dnuclei,analyze_cell
 #from framework.visualization import truncate_colormap, plot_hist, plot_pie
@@ -307,10 +307,10 @@ def df_cytoskeleton_preprocessing(CYTO_df):
         for index,row in CYTO_df.iterrows():
             if type(index) == int:
                 # Cytoskeleton Preprocessing
-                texture,skeleton = cytoskeleton_preprocessing([row['Image'],index],  algorithm='new', parameters=[0.03,500],plot=False)
+                texture,skeleton = cytoskeleton_preprocessing([row['Image'],index],  algorithm='soraia', parameters=[0.03,500],plot=False)
 
                 # Add to DataFrame
-                new       = pd.DataFrame(data={'Name': [row['Name']], 'Index': [index], 'Label': [label_image(index)], 'Skeleton': [skeleton*1]}, index = [index])
+                new       = pd.DataFrame(data={'Name': [row['Name']], 'Index': [index], 'Label': [label_image_soraia(index)], 'Skeleton': [skeleton*1]}, index = [index])
                 TextureDF = pd.concat([TextureDF, new],ignore_index=False)
                 
                 print(">>> Image " + str(index) + " done.")

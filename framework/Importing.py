@@ -12,35 +12,12 @@ from matplotlib.ticker import MaxNLocator
 from itertools import combinations
 
 # Image processing
-from skimage.measure import regionprops
-from skimage.filters import meijering, sato, frangi, hessian, threshold_otsu, laplace, threshold_yen, rank
-from skimage.util import img_as_ubyte
-from skimage.morphology import extrema, skeletonize, disk
-from skimage.transform import probabilistic_hough_line
-#from skimage.draw import disk, circle_perimeter
-from scipy.ndimage import gaussian_filter, grey_closing
-from scipy.spatial import distance_matrix
-from skimage import data, restoration, util
 from roipoly import RoiPoly
-from matplotlib_scalebar.scalebar import ScaleBar
-from biosppy.signals import tools
-from biosppy.stats import pearson_correlation
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from skimage import filters
 
 # Plotting
 import matplotlib.pyplot as plt
 import matplotlib.cm as pltc
 import matplotlib.colors as colors
-import seaborn as sns
-
-# Widgets
-import ipywidgets as widgets
-from ipywidgets import interact, interactive, fixed, interact_manual
-from IPython.display import display
-
-
 
 # Feature Extraction (.py files by Teresa Parreira)
 # from CytoSkeletonPropsMorph import CytoSkeletonPropsMorph
@@ -49,17 +26,7 @@ from IPython.display import display
 # from GLCM import GLCM
 
 # Graph
-import sknw
-import networkx as nx
-from scipy.signal import argrelextrema
-from skan import Skeleton, summarize,draw
-from skan.csr import skeleton_to_csgraph, sholl_analysis,make_degree_image
-import scipy as sp
-import scipy.sparse
-from matplotlib.patches import Circle
-from framework.ImageFeatures import ImageFeatures
-#from fractal_dimension import fractal_dimension
-#from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
+
 import tifffile as tiffio
 
 import scipy.misc
@@ -81,6 +48,21 @@ def label_image(number):
         label = 'Dup41_46'
     elif number >= 69 and number <= 74:
         label = 'Mut394'
+    else:
+        label = None
+    return label
+
+def label_image_soraia(number):
+    if number <= 3:
+        label = 'WT'
+    elif number >= 4 and number <= 6:
+        label = 'Mock'
+    elif number >= 7 and number <= 9:
+        label = '1901'
+    elif number >= 10 and number <= 12:
+        label = '2245'
+    elif number >= 13 and number <= 15:
+        label = '2494'
     else:
         label = None
     return label
@@ -114,7 +96,7 @@ def init_import(folder, options):
             else:
                 image    = cv2.imread(path,-1)  # Size: (1040,1388)
                 img_id   = int(img.split('_')[1])
-                new      = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [label_image(img_id)], 'Image': [image]}, index = [img_id])
+                new      = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [label_image_soraia(img_id)], 'Image': [image]}, index = [img_id])
                 DeconvDF = pd.concat([DeconvDF, new], axis=0,ignore_index=False)
         res["CYTO_DECONV"] = DeconvDF
         print(">>> [CYTO_DECONV] added.")
@@ -127,7 +109,7 @@ def init_import(folder, options):
             #image          = nuclei_preprocessing(cv2.imread(path,-1))
             image          = cv2.imread(path,-1)
             img_id         = int(img.split('_')[1])
-            new            = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [label_image(img_id)], 'Image': [image]}, index = [img_id])
+            new            = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [label_image_soraia(img_id)], 'Image': [image]}, index = [img_id])
             NucleiDeconvDF = pd.concat([NucleiDeconvDF, new], axis=0,ignore_index=False)
         res["NUCL_DECONV"] = NucleiDeconvDF
         print(">>> [NUCL_DECONV] added.")
@@ -146,9 +128,9 @@ def init_import(folder, options):
                 img_id  = int(img.split('_')[1])
             
             try:
-                new     = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Channel': int(img.split('_')[-1][3]), 'Label': [label_image(img_id)], 'Image': [image]}, index = [img_id])
+                new     = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Channel': int(img.split('_')[-1][3]), 'Label': [label_image_soraia(img_id)], 'Image': [image]}, index = [img_id])
             except:
-                new     = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Channel': int(img.split('_')[-2][3]), 'Label': [label_image(img_id)], 'Image': [image]}, index = [img_id])
+                new     = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Channel': int(img.split('_')[-2][3]), 'Label': [label_image_soraia(img_id)], 'Image': [image]}, index = [img_id])
             TenDF   = pd.concat([TenDF, new], axis=0,ignore_index=False)
         res["3D"] = TenDF
         print(">>> [3D] added.")
