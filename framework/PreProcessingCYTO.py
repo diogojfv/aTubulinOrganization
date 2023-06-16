@@ -68,9 +68,14 @@ from framework.Importing import label_image,label_image_soraia,init_import
 
 
 def cytoskeleton_preprocessing(image, algorithm, parameters,plot):
-    # image      = [image, image index]
-    # parameters = [sigmas, gamma]
-    
+    """
+    Preprocessing of a cytoskeleton image
+        - image      = [image, image index]
+        - algorithm  = string with any algorithm
+        - parameters = [sigmas, gamma]
+        - plot       = bool
+    """
+
     # Imports
     from skimage.filters import meijering, sato, frangi, hessian, threshold_otsu, laplace, threshold_yen, rank
     from skimage.util import img_as_ubyte
@@ -78,6 +83,7 @@ def cytoskeleton_preprocessing(image, algorithm, parameters,plot):
     from skimage import filters
     
     global texture,skeleton,e,s
+    
     if algorithm == 1:
         # Hessian detection
         hessian_img = hessian(image[0],black_ridges=False,sigmas=parameters[0],mode='reflect',gamma=parameters[1])

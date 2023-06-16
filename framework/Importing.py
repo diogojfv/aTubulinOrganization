@@ -68,7 +68,7 @@ def label_image_soraia(number):
     return label
 
 
-def init_import(folder, options):
+def init_import(folder, options, denominator):
     res = OrderedDict()
     
     # RGB NUCLEI + TUBULIN IMAGES
@@ -78,7 +78,7 @@ def init_import(folder, options):
             path       = folder + "\\RGB\\" + img
             image      = cv2.imread(path,cv2.IMREAD_COLOR)  # Size: (1040, 1388, 3)
             img_id     = int(img.split('_')[0])+1 # add 1 to keep the same id as deconvoluted imgs
-            new        = pd.DataFrame(data={'Name': [img], 'Label': [label_image(img_id)], 'Image': [image]}, index = [img_id])
+            new        = pd.DataFrame(data={'Name': [img], 'Label': [denominator(img_id)], 'Image': [image]}, index = [img_id])
             OriginalDF = pd.concat([OriginalDF, new], axis=0,ignore_index=False)
         res["RGB"] = OriginalDF
         print(">>> [RGB] added.")
@@ -96,7 +96,7 @@ def init_import(folder, options):
             else:
                 image    = cv2.imread(path,-1)  # Size: (1040,1388)
                 img_id   = int(img.split('_')[1])
-                new      = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [label_image_soraia(img_id)], 'Image': [image]}, index = [img_id])
+                new      = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img_id)], 'Image': [image]}, index = [img_id])
                 DeconvDF = pd.concat([DeconvDF, new], axis=0,ignore_index=False)
         res["CYTO_DECONV"] = DeconvDF
         print(">>> [CYTO_DECONV] added.")
@@ -109,7 +109,7 @@ def init_import(folder, options):
             #image          = nuclei_preprocessing(cv2.imread(path,-1))
             image          = cv2.imread(path,-1)
             img_id         = int(img.split('_')[1])
-            new            = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [label_image_soraia(img_id)], 'Image': [image]}, index = [img_id])
+            new            = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [denominator(img_id)], 'Image': [image]}, index = [img_id])
             NucleiDeconvDF = pd.concat([NucleiDeconvDF, new], axis=0,ignore_index=False)
         res["NUCL_DECONV"] = NucleiDeconvDF
         print(">>> [NUCL_DECONV] added.")
@@ -128,9 +128,9 @@ def init_import(folder, options):
                 img_id  = int(img.split('_')[1])
             
             try:
-                new     = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Channel': int(img.split('_')[-1][3]), 'Label': [label_image_soraia(img_id)], 'Image': [image]}, index = [img_id])
+                new     = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Channel': int(img.split('_')[-1][3]), 'Label': [denominator(img_id)], 'Image': [image]}, index = [img_id])
             except:
-                new     = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Channel': int(img.split('_')[-2][3]), 'Label': [label_image_soraia(img_id)], 'Image': [image]}, index = [img_id])
+                new     = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Channel': int(img.split('_')[-2][3]), 'Label': [denominator(img_id)], 'Image': [image]}, index = [img_id])
             TenDF   = pd.concat([TenDF, new], axis=0,ignore_index=False)
         res["3D"] = TenDF
         print(">>> [3D] added.")
