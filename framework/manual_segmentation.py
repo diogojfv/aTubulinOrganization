@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from roipoly import RoiPoly
+import cv2
 
 def roi_selector(data,img_id,ROIsDF):
     global ROI
@@ -14,14 +15,29 @@ def roi_selector(data,img_id,ROIsDF):
        
     ROIsDF_ = copy.deepcopy(ROIsDF)
     
+    # Get image
+    if '3D' in data.keys():
+        flag = '3D'
+        mult = np.stack([1.8*data['3D']['Image'][12]/np.max(data['3D']['Image'][12]),1.8*data['3D']['Image'][11]/np.max(data['3D']['Image'][11]),1*data['3D']['Image'][10]/np.max(data['3D']['Image'][10])],axis=2)
+    
+    if 'CYTO_DECONV' in data.keys():
+        flag = 'RGB'
+        img        = data['RGB']['Image'][img_id]
+        tmp        = copy.deepcopy(img)
+        tmp[:,:,0] = 0
+        grey       = cv2.cvtColor(tmp,cv2.COLOR_RGB2GRAY)
+
+        #mult = np.stack([1.3*(grey / np.max(grey)),1.3*sk*(grey / np.max(grey)), np.zeros_like(sk)],axis=2)
+        #mult = np.stack([0.9*(grey / np.max(grey)),sk*(grey / np.max(grey)), 0.5 * (OriginalDF['Image'][img_id][:,:,0] / np.max(OriginalDF['Image'][img_id][:,:,0]))],axis=2)
+        #mult = np.stack([1.5*(grey / np.max(grey)),sk, 0.2 * (data['RGB']['Image'][img_id][:,:,0] / np.max(data['RGB']['Image'][img_id][:,:,0]))],axis=2)
+        mult = img
+
+        
+        
+    
     while 1:
         try:
             plt.close('all')
-
-            # Original Image
-            img = data['Image'][img_id]
-            mult = np.stack([1.8*data['Image'][12]/np.max(data['Image'][12]),1.8*data['Image'][11]/np.max(data['Image'][11]),1*data['Image'][10]/np.max(data['Image'][10])],axis=2)
-
 
             # Select ROI QT
             #%matplotlib qt
@@ -39,7 +55,7 @@ def roi_selector(data,img_id,ROIsDF):
             mask = ROI.get_mask(img)
 
             # Save ROI
-            new = pd.DataFrame(data = {'Name': [data['Name'][img_id]],'Index': [img_id], 'Label': [data['Label'][img_id]], 'ROImask': [mask]})
+            new = pd.DataFrame(data = {'Name': [data[flag]['Name'][img_id]],'Index': [img_id], 'Label': [data[flag]['Label'][img_id]], 'ROImask': [mask]})
             ROIsDF_ = pd.concat([ROIsDF_, new], axis=0,ignore_index=True)
 
 

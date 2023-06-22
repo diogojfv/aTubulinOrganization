@@ -414,3 +414,278 @@ def plot_violinplot(df,save):
             print('o')
         
         plt.show()
+        
+        
+        
+        
+        
+        
+###### OTHER PLOTS (PRECISA DE REVISÃO)
+# Quantitative Analysis
+def quantitative_analysis(ImageLinesDF):
+    feats = list(ImageLinesDF.columns[3:])
+    cmap = pltc.Reds
+    global new_cmap
+    new_cmap = truncate_colormap(cmap, 0.3, 1, 300)
+    
+    #histog = np.histogram(np.array(feat_concat[~np.isnan(feat_concat)]),bins=30)
+    # plt.plot(histog[1][:-1],histog[0]/np.sum(histog[0]),color=colors[labels.index(label)],linewidth=4,label = label,alpha=0.7)
+    flag = False
+    global feat
+    for feat in feats:
+
+        if feat == 'Angles':
+            #histog = np.histogram(ImageLinesDF[feat][ImageLinesDF[feat].index[0]],bins=180)
+            #plot_hist(feat=feat,bins=np.linspace(0,90,91))
+            plot_hist(ImageLinesDF=ImageLinesDF,feat=feat,bins=hist_bin(feat))
+
+        elif feat == 'Distances to Centroid':
+            #histog = np.histogram(ImageLinesDF[feat][ImageLinesDF[feat].index[0]],bins=30)
+            plot_hist(ImageLinesDF=ImageLinesDF,feat=feat,bins=hist_bin(feat))
+            #aux = []
+            #for i in range(len(histog[1])-1):
+            #    aux += [np.pi*(histog[1][i+1])**2 - np.pi*(histog[1][i])**2]
+            #ax2.plot(histog[1][:-1],(histog[0]/np.trapz(histog[0],x=histog[1][:-1]))/aux,'--',label='uga',alpha=0)
+ 
+        elif feat == 'Triangle Areas':
+            #histog = np.histogram(ImageLinesDF[feat][ImageLinesDF[feat].index[0]],bins=30)
+            plot_hist(ImageLinesDF=ImageLinesDF,feat=feat,bins=hist_bin(feat))
+        
+        elif feat == 'Line Lengths':
+            #histog = np.histogram(ImageLinesDF[feat][ImageLinesDF[feat].index[0]],bins=30)
+            plot_hist(ImageLinesDF=ImageLinesDF,feat=feat,bins=hist_bin(feat))
+            
+        elif feat == 'Theta':
+            plot_hist(ImageLinesDF=ImageLinesDF,feat=feat,bins=hist_bin(feat))
+            
+        elif feat == 'Angle Difference':
+            plot_hist(ImageLinesDF=ImageLinesDF,feat=feat,bins=hist_bin(feat))
+            
+        elif feat == 'Number of Lines':
+            plot_pie(ImageLinesDF=ImageLinesDF,feat=feat,Max=400)
+            #flag = True
+            
+        else:
+        #    #print("Fractal Dimension: " + str(ImageLinesDF[feat][ImageLinesDF[feat].index[0]]))
+            print(str(feat) + ": " + str(ImageLinesDF.tail(1)[feat][ImageLinesDF.tail(1).index[0]]))
+    
+    global comb
+    comb = combinations(range(len(feats[:6])), 2)
+    data = ImageLinesDF.tail(1)
+    for f in list(comb):
+        fig, ax = plt.subplots()
+        f1 = feats[f[0]]
+        f2 = feats[f[1]]
+        if f1 == 'Angles' or f1 == 'Theta' or f1 == 'Angle Difference':
+            bin1 = np.linspace(0,90,10)
+        else:
+            bin1 = 15
+        if f2 == 'Angles' or f2 == 'Theta' or f2 == 'Angle Difference':
+            bin2 = np.linspace(0,90,10)
+        else:
+            bin2 = 15
+        
+        #plt.figure(figsize=(15,15))
+        hi, xedges, yedges, image = plt.hist2d(data[feats[f[0]]][data.index[0]],data[feats[f[1]]][data.index[0]],bins=[bin1,bin2],cmap=cmap,alpha=0.7)   
+        ax.set_xticks(xedges)
+        ax.set_yticks(np.linspace(0,yedges[-1],10,endpoint=True,dtype=int))
+        ax.set_facecolor(cmap(0))
+        plt.xlabel(feats[f[0]])
+        plt.ylabel(feats[f[1]])
+        #plt.title('Line Segment Angles vs. Distances to Centroid')
+        cbar = fig.colorbar(image, ax=ax)
+        cbar.set_label("Absolute Frequency")
+        plt.show()
+        
+#     # HEATMAP 1
+#     fig, ax = plt.subplots()
+#     data = ImageLinesDF.tail(1)
+#     hi, xedges, yedges, image = plt.hist2d(data['Angles'][data.index[0]],data['Distances to Centroid'][data.index[0]],bins=[np.linspace(0,90,10), np.arange(0, 280 + 5, 5)],cmap=cmap,alpha=0.7)   
+#     ax.set_facecolor(cmap(0))
+#     plt.xlabel('Angle (º)')
+#     plt.ylabel('Distance to Centroid (pixels)')
+#     plt.title('Line Segment Angles vs. Distances to Centroid')
+#     cbar = fig.colorbar(image, ax=ax)
+#     cbar.set_label("Absolute Frequency")
+#     plt.show()
+    
+#     # HEATMAP 2
+#     fig, ax = plt.subplots()
+#     data = ImageLinesDF.tail(1)
+#     hi, xedges, yedges, image = plt.hist2d(data['Line Lengths'][data.index[0]],data['Distances to Centroid'][data.index[0]],bins=[30,30],cmap=cmap,alpha=0.7)   
+#     plt.xlabel('Line Lengths (pixels)')
+#     plt.ylabel('Distance to Centroid (pixels)')
+#     plt.title('Line Segment Lengths vs. Distances to Centroid')
+#     cbar = fig.colorbar(image, ax=ax)
+#     cbar.set_label("Absolute Frequency")
+#     plt.show()
+
+
+def plot_hist(ImageLinesDF,feat,bins):
+    cmap = pltc.Reds
+    global new_cmap
+    new_cmap = truncate_colormap(cmap, 0.3, 1, 300)
+    
+    global data
+    data = ImageLinesDF.tail(1)
+    global histog,bin_edges
+    
+#     if feat == 'Distances to Centroid':
+#         bins = np.arange(0, 280 + 5, 5)
+#     if feat == 'Triangle Areas':
+#         bins = np.arange(0, 4600 + 5, 5)
+#     if feat == 'Line Lengths':
+#         # max(data[feat][data.index[0]])
+#         bins = np.arange(0, 220 + 5, 5)
+#     if feat == 'Theta':
+#         bins = np.arange
+#     if feat == 'Angle Difference':
+#         bins = np.arange
+    
+    histo = np.histogram(data[feat][data.index[0]],bins=bins[0])
+    
+    # AX1
+    plt.figure()
+    ax1 = plt.subplot(1,1,1)
+    ax1.set_ylabel('Absolute Frequency')
+    ax1.yaxis.set_major_locator(MaxNLocator(integer=True))
+    ax1.tick_params(axis='y', colors=pltc.Reds_r(0))
+
+    
+    global colours
+    #colours = pltc.Reds(plt.Normalize(0, max(histog[0]))(histog[0]),alpha=0.7)
+    #colours = new_cmap(plt.Normalize(0, max(histo[0]))(histo[0]),alpha=0.7)
+
+    #ax1.bar(histog[1][:-1],histog[0],color=colours,zorder=5)
+    histog, bin_edges, patches = ax1.hist(data[feat][data.index[0]], bins=bins[0],color='k',alpha=0.7,edgecolor = "white")
+    #ax1.color = new_cmap(plt.Normalize(0, max(histog))(histog),alpha=0.7)
+    for c, p in zip(histog, patches):
+        plt.setp(p, 'facecolor', new_cmap(plt.Normalize(0, max(histog))(c), alpha = 0.7))
+    
+    # AX2
+    ax2 = ax1.twinx()  
+    ax2.set_ylabel('Relative Frequency')  
+    _ = ax2.hist(data[feat][data.index[0]], bins=bins[0], density=True,color='k',alpha=0.7,fill=False,histtype='step',ls='dashed')
+    #ax2.plot(histog[1][:-1],(histog[0]/np.trapz(histog[0],x=histog[1][:-1])),'--',alpha=0,zorder=1)
+    plt.grid(alpha=0.3)
+    
+    if feat == 'Angles':
+        ax1.set_xlabel('Degrees (º)')
+        ax1.set_title('Angle between Centroid and Line Segment',fontsize=12)
+        ax1.set_xticks(bin_edges)
+    if feat == 'Distances to Centroid':
+        ax1.set_xlabel('Pixels')
+        ax1.set_title('Distance between Centroid and Line Segment',fontsize=12)
+        ax1.set_xticks(np.linspace(0,bin_edges[-1],10,endpoint=True,dtype=int))
+        #ax1.set_xticks(np.linspace(0,130,10,endpoint=True,dtype=int))
+        
+    if feat == 'Triangle Areas':
+        ax1.set_xlabel('Pixels')
+        ax1.set_title('Triangle Areas between Centroid and Line Segment',fontsize=12)
+        #ax1.set_xticks(np.linspace(0,bin_edges[-1],10,endpoint=True,dtype=int))
+        ax1.set_xticks(np.linspace(0,bin_edges[-1],10,endpoint=True,dtype=int))
+        
+    if feat == 'Line Lengths':
+        ax1.set_xlabel('Pixels')
+        ax1.set_title('Line Length',fontsize=12)
+        ax1.set_xticks(np.linspace(0,bin_edges[-1],10,endpoint=True,dtype=int))
+        #ax1.set_xticks(np.linspace(0,170,10,endpoint=True,dtype=int))
+        
+    if feat == 'Theta':
+        ax1.set_xlabel('Degrees (º)')
+        ax1.set_title('Line Segment Angle',fontsize=12)
+        ax1.set_xticks(bin_edges)
+        
+    if feat == 'Angle Difference':
+        ax1.set_xlabel('Degrees (º)')
+        ax1.set_title('Angle Difference (º)',fontsize=12)
+        ax1.set_xticks(bin_edges)
+    
+    ax1.set_xticks(hist_bin(feat)[1])
+    ax1.set_xticklabels(hist_bin(feat)[1],rotation=45, ha='right', rotation_mode='anchor')
+            
+    #plt.savefig(".//CellVSCellAnalysis//" + str(feat) + ".png",format='png',transparent=True,bbox_inches='tight')
+    plt.show()
+    
+#OU
+
+def plot_hist(ImageLinesDF,feat,bins):
+    cmap = pltc.Reds
+    global new_cmap
+    new_cmap = truncate_colormap(cmap, 0.3, 1, 300)
+    
+    global data
+    data = ImageLinesDF.tail(1)
+    global histog,bin_edges
+    
+#     if feat == 'Distances to Centroid':
+#         bins = np.arange(0, 280 + 5, 5)
+#     if feat == 'Triangle Areas':
+#         bins = np.arange(0, 4600 + 5, 5)
+#     if feat == 'Line Lengths':
+#         # max(data[feat][data.index[0]])
+#         bins = np.arange(0, 220 + 5, 5)
+#     if feat == 'Theta':
+#         bins = np.arange
+#     if feat == 'Angle Difference':
+#         bins = np.arange
+    
+    histo = np.histogram(data[feat][data.index[0]],bins=bins)
+    
+    # AX1
+    plt.figure()
+    ax1 = plt.subplot(1,1,1)
+    ax1.set_ylabel('Absolute Frequency')
+    ax1.yaxis.set_major_locator(MaxNLocator(integer=True))
+    
+    global colours
+    #colours = pltc.Reds(plt.Normalize(0, max(histog[0]))(histog[0]),alpha=0.7)
+    #colours = new_cmap(plt.Normalize(0, max(histo[0]))(histo[0]),alpha=0.7)
+
+    #ax1.bar(histog[1][:-1],histog[0],color=colours,zorder=5)
+    histog, bin_edges, patches = ax1.hist(data[feat][data.index[0]], bins=bins,color='k',alpha=0.7)
+    #ax1.color = new_cmap(plt.Normalize(0, max(histog))(histog),alpha=0.7)
+    for c, p in zip(histog, patches):
+        plt.setp(p, 'facecolor', new_cmap(plt.Normalize(0, max(histog))(c), alpha = 0.7))
+    
+    # AX2
+    ax2 = ax1.twinx()  
+    ax2.set_ylabel('Relative Frequency')  
+    _ = ax2.hist(data[feat][data.index[0]], bins=bins, density=True, alpha=0)
+    #ax2.plot(histog[1][:-1],(histog[0]/np.trapz(histog[0],x=histog[1][:-1])),'--',alpha=0,zorder=1)
+    plt.grid(alpha=0.3)
+    
+    if feat == 'Angles':
+        ax1.set_xlabel('Degrees (º)')
+        ax1.set_title('Angle between Centroid and Line Segment',fontsize=12)
+        ax1.set_xticks(bin_edges)
+    if feat == 'Distances to Centroid':
+        ax1.set_xlabel('Pixels')
+        ax1.set_title('Distance between Centroid and Line Segment',fontsize=12)
+        ax1.set_xticks(np.linspace(0,bin_edges[-1],10,endpoint=True,dtype=int))
+        #ax1.set_xticks(np.linspace(0,130,10,endpoint=True,dtype=int))
+        
+    if feat == 'Triangle Areas':
+        ax1.set_xlabel('Pixels')
+        ax1.set_title('Triangle Areas between Centroid and Line Segment',fontsize=12)
+        #ax1.set_xticks(np.linspace(0,bin_edges[-1],10,endpoint=True,dtype=int))
+        ax1.set_xticks(np.linspace(0,bin_edges[-1],10,endpoint=True,dtype=int))
+        
+    if feat == 'Line Lengths':
+        ax1.set_xlabel('Pixels')
+        ax1.set_title('Line Length',fontsize=12)
+        ax1.set_xticks(np.linspace(0,bin_edges[-1],10,endpoint=True,dtype=int))
+        #ax1.set_xticks(np.linspace(0,170,10,endpoint=True,dtype=int))
+        
+    if feat == 'Theta':
+        ax1.set_xlabel('Degrees (º)')
+        ax1.set_title('Line Segment Angle',fontsize=12)
+        ax1.set_xticks(bin_edges)
+        
+    if feat == 'Angle Difference':
+        ax1.set_xlabel('Degrees (º)')
+        ax1.set_title('Angle Difference (º)',fontsize=12)
+        ax1.set_xticks(bin_edges)
+    
+    #plt.savefig(".//CellVSCellAnalysis//" + str(data.index) + str("_") + str(feat) + ".png",format='png',transparent=True,bbox_inches='tight')
+    plt.show()

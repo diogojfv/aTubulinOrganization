@@ -22,28 +22,11 @@ from scipy.ndimage import gaussian_filter, grey_closing
 from scipy.spatial import distance_matrix
 from skimage import data, restoration, util
 from roipoly import RoiPoly
-from matplotlib_scalebar.scalebar import ScaleBar
-from biosppy.signals import tools
-from biosppy.stats import pearson_correlation
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
 
 # Plotting
 import matplotlib.pyplot as plt
 import matplotlib.cm as pltc
 import matplotlib.colors as colors
-import seaborn as sns
-
-# Widgets
-import ipywidgets as widgets
-from ipywidgets import interact, interactive, fixed, interact_manual
-from IPython.display import display
-
-# Feature Extraction (.py files by Teresa Parreira)
-# from CytoSkeletonPropsMorph import CytoSkeletonPropsMorph
-# from CytoSkeletonRegionPropsInt import RegionPropsInt
-# from FreqAnalysis import FreqAnalysis
-# from GLCM import GLCM
 
 # Graph
 import sknw
