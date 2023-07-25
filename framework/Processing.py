@@ -40,7 +40,7 @@ import scipy as sp
 import scipy.sparse
 from matplotlib.patches import Circle
 from framework.ImageFeatures import ImageFeatures,getvoxelsize
-from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,create_separate_DFs,branch,graphAnalysis
+from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,branch,graphAnalysis
 from framework.Importing import label_image_soraia,init_import
 #from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
 #from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
@@ -50,6 +50,94 @@ from framework.Importing import label_image_soraia,init_import
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
 
 
+
+
+
+
+
+# def create_separate_DFs(DF):
+#     global LSF
+    
+#     LSF = DF[DF.columns[[x.startswith("LSF2D") for x in DF.columns]]]
+#     try:
+#         fts = tools.signal_stats(eval(LSF.loc[LSF.index[0]]['LSF2D:Angles']))._names
+#     except:
+#         fts = tools.signal_stats(LSF.loc[LSF.index[0]]['LSF2D:Angles'])._names
+#     res = pd.DataFrame()
+#     for ft in LSF.columns: 
+#         try:
+#             temp = np.array([list(tools.signal_stats(cell)) for cell in LSF[ft]])
+#         except:
+#             temp = np.array([list(tools.signal_stats(eval(cell))) for cell in LSF[ft]])
+#         res  = pd.concat([res, pd.DataFrame(temp,columns = [ft+str(" ")+i for i in fts])],axis=1)
+#     res.index = LSF.index
+    
+#     # Concatenate with 1D features
+#     LSF = pd.concat([res, DF[DF.columns[[x.startswith("LSF1D") for x in DF.columns]]]],axis=1)
+    
+#     DCF  = DF[DF.columns[[x.startswith("DCF") for x in DF.columns]]]
+#     DNF  = DF[DF.columns[[x.startswith("DNF") for x in DF.columns]]]
+#     SKNW = DF[DF.columns[[x.startswith("SKNW") for x in DF.columns]]]
+#     OTHERS = DF[DF.columns[[x.startswith("OTHERS") for x in DF.columns]]]
+#     FULL = pd.concat([LSF, DCF, DNF, SKNW, OTHERS],axis=1)
+    
+#     return LSF,DCF,DNF,SKNW,OTHERS,FULL
+
+def create_separate_DFs(DF,options):
+    sep = OrderedDict()
+    INFO = DF[DF.columns[:5]]
+    
+    # DECONVOLUTED CELL FEATURES
+    if "DCF" in options or "FULL" in options:
+        sep["DCF"] = DF[DF.columns[[x.startswith("DCF") for x in DF.columns]]]
+    
+    # DECONVOLUTED NUCLEUS FEATURES
+    if "DNF" in options or "FULL" in options:
+        sep["DNF"] = DF[DF.columns[[x.startswith("DNF") for x in DF.columns]]]
+
+    #LINE SEGMENT FEATURES
+    if "LSF" in options or "FULL" in options:
+        LSF = pd.DataFrame()
+        LSFcols = DF.columns[[x.startswith("LSF2D") for x in DF.columns]]
+        for col in LSFcols:
+            prefix = "LSF1D:" + col[6:]
+            aux = pd.DataFrame()
+            for index,row in DF.iterrows():
+                stats = statistics_from_2D_features(prefix,row[col])
+                dados = pd.Series(data=[c[1] for c in stats],index=[c[0] for c in stats])
+                aux = pd.concat([aux, dados.to_frame().T],axis=0)
+            aux.index = DF.index
+
+            LSF = pd.concat([LSF, aux],axis=1)
+        
+        sep["LSF"] = LSF
+
+    #CYTOSKELETON NETWORK FEATURES
+#     CNF = pd.DataFrame()
+#     CNFcols = DF.columns[[x.startswith("SKNW") for x in DF.columns]]
+#     for col in CNFcols:
+#         prefix = "CNF1D:" + col[5:]
+#         aux = pd.DataFrame()
+#         for index,row in DF.iterrows():
+#             stats = statistics_from_2D_features(prefix,row[col])
+#             dados = pd.Series(data=[c[1] for c in stats],index=[c[0] for c in stats])
+#             aux = pd.concat([aux, dados.to_frame().T],axis=0)
+#         aux.index = ResultsDF.index
+        
+#         CNF = pd.concat([CNF, aux],axis=1)
+    if "CNF" in options or "FULL" in options:
+        sep["CNF"] = DF[DF.columns[[x.startswith("SKNW") for x in DF.columns]]]
+    
+    # OTHERS
+    if "OTHERS" in options or "FULL" in options:
+        sep["OTHERS"] = DF[DF.columns[[x.startswith("OTHERS") for x in DF.columns]]]
+    
+    # ALL FEATURES
+    if "FULL" in options:
+        #sep["FULL"] = pd.concat([INFO, [sep[k] for k in sep.keys()]],axis=1)
+        sep["FULL"] = pd.concat([INFO, sep["DCF"], sep["DNF"], sep["LSF"], sep["CNF"], sep["OTHERS"]],axis=1)
+    
+    return sep
 
 
 def ROI_centroid(data,img_id,ROIcoords):
@@ -391,7 +479,7 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     # Useful variables:
     img_id  = rowROI['Index']
     name    = rowROI['Name']
-    label   = label_image_soraia(img_id)
+    label   = label_image(img_id)
     
     # 1040 x 1388
     mask    = rowROI['ROImask']

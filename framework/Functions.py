@@ -58,10 +58,13 @@ import scipy.sparse
 from matplotlib.patches import Circle
 from framework.ImageFeatures import ImageFeatures
 
-
+#from framework.Processing import statistics_from_2D_features
 #from fractal_dimension import fractal_dimension
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
 
+
+
+    
 
 
     
@@ -99,6 +102,8 @@ def polar_to_cartesian(lines):
         
     return res
 
+def guardar(savestring):
+    plt.savefig(savestring,format='png',transparent=True,bbox_inches='tight',dpi=500)
 
     
 def remove_not1D(feats_labels,feats_values):
@@ -379,37 +384,8 @@ def hist_lim(feat):
     else:
         return 0
     
-def create_separate_DFs(DF):
-    global LSF
-    LSF = DF[DF.columns[[x.startswith("LSF2D") for x in DF.columns]]]
-    try:
-        fts = tools.signal_stats(eval(LSF.loc[LSF.index[0]]['LSF2D:Angles']))._names
-    except:
-        fts = tools.signal_stats(LSF.loc[LSF.index[0]]['LSF2D:Angles'])._names
-    res = pd.DataFrame()
-    for ft in LSF.columns: 
-        try:
-            temp = np.array([list(tools.signal_stats(cell)) for cell in LSF[ft]])
-        except:
-            temp = np.array([list(tools.signal_stats(eval(cell))) for cell in LSF[ft]])
-        res  = pd.concat([res, pd.DataFrame(temp,columns = [ft+str(" ")+i for i in fts])],axis=1)
-    res.index = LSF.index
+
     
-    # Concatenate with 1D features
-    LSF = pd.concat([res, DF[DF.columns[[x.startswith("LSF1D") for x in DF.columns]]]],axis=1)
-    
-    DCF  = DF[DF.columns[[x.startswith("DCF") for x in DF.columns]]]
-    DNF  = DF[DF.columns[[x.startswith("DNF") for x in DF.columns]]]
-    SKNW = DF[DF.columns[[x.startswith("SKNW") for x in DF.columns]]]
-    OTHERS = DF[DF.columns[[x.startswith("OTHERS") for x in DF.columns]]]
-    FULL = pd.concat([LSF, DCF, DNF, SKNW, OTHERS],axis=1)
-    
-    return LSF,DCF,DNF,SKNW,OTHERS,FULL 
-
-
-
-
-
 def resample_mine(image,f):
     c = np.zeros((int(image.shape[0]),int(image.shape[1]/2),int(image.shape[2]/2)))
     for i in range(len(image)):

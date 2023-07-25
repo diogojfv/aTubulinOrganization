@@ -57,7 +57,7 @@ import scipy as sp
 import scipy.sparse
 from matplotlib.patches import Circle
 from framework.ImageFeatures import ImageFeatures,getvoxelsize
-from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,create_separate_DFs,branch,graphAnalysis
+from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,branch,graphAnalysis
 from framework.Importing import label_image,init_import
 #from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
 from framework.Processing import process3Dnuclei,analyze_cell
@@ -252,10 +252,10 @@ def intensity_plotter(ResultsRow,data,save):
 #line_plotter(ResultsRow=ResultsDF.loc[2],TextureDF=TextureDF,feat='LSF2D:Distances to Centroid',cmap=cm,normalize_bounds='default',colorbar_label='Degrees',overlay_sk=True,save=False)
 
 
-def line_plotter(ResultsRow,TextureDF,feat,cmap,normalize_bounds,colorbar_label,overlay,save):
-    
+def line_plotter(ResultsRow,data,feat,cmap,normalize_bounds,colorbar_label,overlay,save):
+    #%matplotlib qt
     from matplotlib.colors import LinearSegmentedColormap
-    fig,ax = plt.subplots(figsize=(10,10))
+    fig,ax = plt.subplots()
     
     # Plot background
     if overlay == None:
@@ -265,6 +265,7 @@ def line_plotter(ResultsRow,TextureDF,feat,cmap,normalize_bounds,colorbar_label,
         ax.imshow(np.max(ResultsRow['Patch:Deconvoluted Cyto'][1]) - ResultsRow['Patch:Deconvoluted Cyto'][1],cmap='gray',zorder=2)
         
     ax.axis('off')
+    ax.axis('equal')
     
     # Get bounds for color map (either 'default' or [0,90], etc)
     if normalize_bounds == 'default':
@@ -273,15 +274,17 @@ def line_plotter(ResultsRow,TextureDF,feat,cmap,normalize_bounds,colorbar_label,
     # Plot Nucleus Centroid and Cytoskeleton Centroid
     #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'.',color='#6495ED',markersize=5,zorder=8)
     #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'o',color='#6495ED',markersize=15,zorder=8,fillstyle='none')
-    ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'o',color='#6495ED',markersize=12,zorder=8)
+    #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'o',color='#6495ED',markersize=12,zorder=8)
     
     #ax.plot(ResultsRow['Cytoskeleton Centroid'][1],ResultsRow['Cytoskeleton Centroid'][0],'.',color='r',markersize=5,zorder=8)
     #ax.plot(ResultsRow['Cytoskeleton Centroid'][1],ResultsRow['Cytoskeleton Centroid'][0],'o',color='r',markersize=15,zorder=8,fillstyle='none',)
     #ax.plot(ResultsRow['Cytoskeleton Centroid'][1],ResultsRow['Cytoskeleton Centroid'][0],'o',color='r',markersize=12,zorder=8)
     
     # Plot Nucleus Contour
-    ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5)
-                
+    #ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5)
+    #plot_nuclei_contours(CentroidsDF,ResultsRow['Img Index'],ax) 
+        
+        
     # Plot segments colored by feature value
     #cmap     = pltc.rainbow_r
     #cmap = pltc.hsv
@@ -309,14 +312,18 @@ def line_plotter(ResultsRow,TextureDF,feat,cmap,normalize_bounds,colorbar_label,
 #     ax.add_artist(scalebar)
 
     # Set x and y lims and title
-    ax.set_ylim([min(ResultsRow['Offset'][0]),max(ResultsRow['Offset'][0])])
-    ax.set_xlim([min(ResultsRow['Offset'][1]),max(ResultsRow['Offset'][1])])
+#     ax.set_ylim([min(ResultsRow['Offset'][0]),max(ResultsRow['Offset'][0])])
+#     ax.set_xlim([min(ResultsRow['Offset'][1]),max(ResultsRow['Offset'][1])])
+    x_,y_   = np.where((ResultsRow['Mask']*1) != 0)
+    ax.set_ylim([min(x_),max(x_)])
+    ax.set_xlim([min(y_),max(y_)])
     #ax.set_title(feat,fontsize=12)
     
     # Adjust and Show
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    
     if save != False:
-        plt.savefig(".//" + str(save) + ".png",format='png',transparent=True,bbox_inches='tight',dpi=500)
+        plt.savefig(folder + str("\\") + str(save) + ".png",format='png',transparent=True,bbox_inches='tight',dpi=500)
     fig.show()
     
     return print('Done.')
@@ -334,22 +341,28 @@ def line_plotter(ResultsRow,TextureDF,feat,cmap,normalize_bounds,colorbar_label,
 
 
 def graph_plotter(ResultsRow,data,cmap,feat,normalize_bounds,colorbar_label,nodes,main_branch,overlay,scalebar,save):
+#     try:
+#         #%matplotlib qt
+#     except:
+#         pass
+        
     # Get skeleton
     img       = data['CYTO_DECONV']['Image'][ResultsRow['Img Index']] / np.max(data['CYTO_DECONV']['Image'][ResultsRow['Img Index']])
     intensity = ResultsRow['Mask'] * img
     ske       = Skeleton((ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]*(intensity/np.max(intensity))).astype(float)) 
     
     # Initialize figure
-    fig,ax = plt.subplots(figsize=(10,10))
+    fig,ax = plt.subplots()
     if overlay == None:
         ax.imshow(np.zeros_like(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]),cmap='gray',alpha=0)
     if overlay == 'deconv':
         ax.imshow(np.max(ResultsRow['Mask']*data['CYTO_DECONV']['Image'][ResultsRow['Img Index']]) - ResultsRow['Mask']*data['CYTO_DECONV']['Image'][ResultsRow['Img Index']],cmap='gray',alpha=1)
     ax.axis('off')
+    ax.axis('equal')
     
-    ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'o',color='#6495ED',markersize=12,zorder=8)
-    ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5)
-     
+    #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'o',color='#6495ED',markersize=12,zorder=8)
+    #ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5)
+    #plot_nuclei_contours(CentroidsDF,ResultsRow['Img Index'],ax)
     
     # Get feat
     if feat == 'branch-distance':
@@ -431,13 +444,16 @@ def graph_plotter(ResultsRow,data,cmap,feat,normalize_bounds,colorbar_label,node
     # Plot nodes
     if nodes:
         for e in range(ske.n_paths):
-            ax.plot(ske.path_coordinates(e)[0][1],ske.path_coordinates(e)[0][0],'o',markersize=1,color='k')
-            ax.plot(ske.path_coordinates(e)[-1][1],ske.path_coordinates(e)[-1][0],'o',markersize=1,color='k')
+            ax.plot(ske.path_coordinates(e)[0][1],ske.path_coordinates(e)[0][0],'o',markersize=2,color='k')
+            ax.plot(ske.path_coordinates(e)[-1][1],ske.path_coordinates(e)[-1][0],'o',markersize=2,color='k')
 
     
     # Set x and y lims and title
-    ax.set_xlim([min(ResultsRow['Offset'][1]),max(ResultsRow['Offset'][1])])
-    ax.set_ylim([min(ResultsRow['Offset'][0]),max(ResultsRow['Offset'][0])])
+    #ax.set_xlim([min(ResultsRow['Offset'][1]),max(ResultsRow['Offset'][1])])
+    #ax.set_ylim([min(ResultsRow['Offset'][0]),max(ResultsRow['Offset'][0])])
+    x_,y_   = np.where((ResultsRow['Mask']*1) != 0)
+    ax.set_ylim([min(x_),max(x_)])
+    ax.set_xlim([min(y_),max(y_)])
     #ax.set_title(feat,fontsize=12)
     
     # Colorbar
@@ -453,8 +469,10 @@ def graph_plotter(ResultsRow,data,cmap,feat,normalize_bounds,colorbar_label,node
     
     # save and show
     if save != False:
-        plt.savefig(".//" + str(save) + ".png",format='png',transparent=True,bbox_inches='tight',dpi=1000)
+        plt.savefig(folder + str("\\") + str(save) + ".png",format='png',transparent=True,bbox_inches='tight',dpi=500)
     fig.show()
+    
+    return print('Done.')
     
     
 
@@ -580,4 +598,44 @@ def plot_pie(feat,Max):
     # Equal aspect ratio ensures that pie is drawn as a circle
     ax1.axis('equal')  
     plt.tight_layout()
+    plt.show()
+    
+    
+#use: stackedbarplots(ResultsDF)    
+def stackedbarplots(ResultsDF):
+    r = [0,1,2,3]
+    l,f1,f2,f3,f4 = 'Label','SKNW:Ratio of Endpoint-to-endpoint (isolated branch)','SKNW:Ratio of Junction-to-endpoints','SKNW:Ratio of Junction-to-junctions','SKNW:Ratio of Isolated cycles'
+    data = pd.concat([ResultsDF[f1],ResultsDF[f2],ResultsDF[f3],ResultsDF[f4]],axis=1)
+    
+    colors = ["#2ECC71","#FFA500","#E74C3C","#BC544B"]
+    labels = ['WT','Dup41_46','Del38_46','Mut394']
+    pairs  = [(('WT', 'Dup41_46')), (('WT', 'Del38_46')), (('WT', 'Mut394'))]
+    
+    # From raw value to percentage
+    totals = [i+j+k+w for i,j,k,w in zip(ResultsDF[f1], ResultsDF[f2], ResultsDF[f3],ResultsDF[f4])]
+    greenBars = [i / j * 100 for i,j in zip(ResultsDF[f1], totals)]
+    orangeBars = [i / j * 100 for i,j in zip(ResultsDF[f2], totals)]
+    blueBars = [i / j * 100 for i,j in zip(ResultsDF[f3], totals)]
+    fourBars = [i / j * 100 for i,j in zip(ResultsDF[f4], totals)]
+
+    # plot
+    barWidth = 0.85
+    names = ('A','B','C','D','E')
+    # Create green Bars
+    plt.bar(r, greenBars, color='#b5ffb9', edgecolor='white', width=barWidth)
+    # Create orange Bars
+    plt.bar(r, orangeBars, bottom=greenBars, color='#f9bc86', edgecolor='white', width=barWidth)
+    # Create blue Bars
+    plt.bar(r, blueBars, bottom=[i+j for i,j in zip(greenBars, orangeBars)], color='#a3acff', edgecolor='white', width=barWidth)
+    # Create last Bars
+    plt.bar(r, fourBars, bottom=[i+j+k for i,j,k in zip(greenBars, orangeBars,blueBars)], color='#a3acff', edgecolor='white', width=barWidth)
+
+    
+    # Custom x axis
+    #plt.xticks(r, names)
+    #plt.xlabel("group")
+
+
+    fig,ax = plt.subplots()
+    sns.barplot(x=l, y=[f1,f2,f3,f4], data=data, estimator=sum, ci=95,  color='lightblue')
     plt.show()
