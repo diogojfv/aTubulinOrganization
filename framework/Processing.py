@@ -41,7 +41,7 @@ import scipy.sparse
 from matplotlib.patches import Circle
 from framework.ImageFeatures import ImageFeatures,getvoxelsize
 from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,branch,graphAnalysis
-from framework.Importing import label_image_soraia,init_import
+from framework.Importing import *
 #from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
 #from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
 
@@ -479,14 +479,14 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     # Useful variables:
     img_id  = rowROI['Index']
     name    = rowROI['Name']
-    label   = label_image(img_id)
+    label   = rowROI['Label']
     
     # 1040 x 1388
     mask    = rowROI['ROImask']
     
     if algorithm_cyto == 'deconvoluted':
-        cdeconv = data['CYTO_DECONV']['Image'][img_id]
-        ndeconv = data['NUCL_DECONV']['Image'][img_id]
+        cdeconv = data['CYTO']['Image'][name]
+        ndeconv = data['NUCL']['Image'][name]
         
         cyto        = mask * cdeconv
         cyto_norm   = (cyto-np.min(cyto))/(np.max(cyto)-np.min(cyto)) #cyto_norm   = mask * (cdeconv / np.max(cdeconv)) / np.max(cyto) #aux_f
@@ -500,7 +500,7 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
         cyto_norm = mask * (cyto / np.max(cyto))
         
          
-    esqueleto       = data['CYTO_PRE']['Skeleton'][img_id] * 1
+    esqueleto       = data['CYTO_PRE']['Skeleton'][name] * 1
     mesqueleto      = mask * esqueleto                              # aux_
     
     if algorithm_cyto == 'deconvoluted':
@@ -554,13 +554,13 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
 
     # PROCESSING: **CYTOSKELETONS**
     #skel antes era mesqueleto_norm[min(x_):max(x_),min(y_):max(y_)]
-    feats_all                    = ImageFeatures(cyto_norm,mesqueleto_norm,features,data['CYTO_DECONV'].loc[img_id]['Path'])
+    feats_all                    = ImageFeatures(cyto_norm,mesqueleto_norm,features,data['CYTO'].loc[name]['Path'])
     feats_labels_, feats_values_ = feats_all.print_features(print_values = False)
     feats_labels_, feats_values_ = remove_not1D(feats_labels_,feats_values_)
     feats_labels_                = ['DCF:' + ftf for ftf in feats_labels_]
  
     # PROCESSING: **NUCLEI**
-    feats_all_n                      = ImageFeatures(ndeconv_norm,'None',features,data['NUCL_DECONV'].loc[img_id]['Path'])
+    feats_all_n                      = ImageFeatures(ndeconv_norm,'None',features,data['NUCL'].loc[name]['Path'])
     feats_labels_n_, feats_values_n_ = feats_all_n.print_features(print_values = False)
     feats_labels_n_, feats_values_n_ = remove_not1D(feats_labels_n_,feats_values_n_)
     feats_labels_n_                  = ['DNF:' + ftn for ftn in feats_labels_n_]
@@ -578,7 +578,7 @@ def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features)
     if 'ResultsDF' not in globals():
         ResultsDF = pd.DataFrame(columns = ['Name'] + ['Img Index'] + ['Label'] + ['Mask'] + ['Patch:Skeleton'] + ['Patch:Deconvoluted Cyto'] + ['Patch:Deconvoluted Nucl'] + ['Patch:Skeleton Max'] + ['Offset'] + ['Nucleus Contour'] + ['Nucleus Centroid'] + ['Cytoskeleton Centroid'] + ['Lines'] + [xç for xç,yç in LSFs] + list(feats_labels_) + list(feats_labels_n_) + [xg for xg,yg in CNFs])
         
-    new       = pd.Series([name] + [img_id] + [label] + [mask] + [patch] + [patch_cyto_norm] + [patch_n_norm] + [mesqueleto] + [[x_,y_]] + [cr] + [centroid] + [cytocenter] + [lines] +  [yç for xç,yç in LSFs] + feats_values_ + feats_values_n_ + [yg for xg,yg in CNFs], index=ResultsDF.columns)
+    new       = pd.Series([name] + [name] + [label] + [mask] + [patch] + [patch_cyto_norm] + [patch_n_norm] + [mesqueleto] + [[x_,y_]] + [cr] + [centroid] + [cytocenter] + [lines] +  [yç for xç,yç in LSFs] + feats_values_ + feats_values_n_ + [yg for xg,yg in CNFs], index=ResultsDF.columns)
 
     ResultsDF = pd.concat([ResultsDF,new.to_frame().T],axis=0,ignore_index=True)
          

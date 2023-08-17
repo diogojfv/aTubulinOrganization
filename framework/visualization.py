@@ -58,7 +58,7 @@ import scipy.sparse
 from matplotlib.patches import Circle
 from framework.ImageFeatures import ImageFeatures,getvoxelsize
 from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,branch,graphAnalysis
-from framework.Importing import label_image,init_import
+from framework.Importing import *
 #from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
 from framework.Processing import process3Dnuclei,analyze_cell
 
@@ -142,7 +142,7 @@ def intensity_plotter(ResultsRow,data,save):
     ##### FIGURE 2
     # Initialize figure 2
     fig,ax = plt.subplots(figsize=(8,8))
-    intensity = data['CYTO_DECONV']['Image'][ResultsRow['Img Index']] / np.max(data['CYTO_DECONV']['Image'][ResultsRow['Img Index']])
+    intensity = data['CYTO']['Image'][ResultsRow['Img Index']] / np.max(data['CYTO']['Image'][ResultsRow['Img Index']])
     aux = intensity * ResultsRow['Mask']
     aux = aux / np.max(aux)
     ax.imshow(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]*aux,cmap=cm)
@@ -347,7 +347,7 @@ def graph_plotter(ResultsRow,data,cmap,feat,normalize_bounds,colorbar_label,node
 #         pass
         
     # Get skeleton
-    img       = data['CYTO_DECONV']['Image'][ResultsRow['Img Index']] / np.max(data['CYTO_DECONV']['Image'][ResultsRow['Img Index']])
+    img       = data['CYTO']['Image'][ResultsRow['Img Index']] / np.max(data['CYTO']['Image'][ResultsRow['Img Index']])
     intensity = ResultsRow['Mask'] * img
     ske       = Skeleton((ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]*(intensity/np.max(intensity))).astype(float)) 
     
@@ -356,7 +356,7 @@ def graph_plotter(ResultsRow,data,cmap,feat,normalize_bounds,colorbar_label,node
     if overlay == None:
         ax.imshow(np.zeros_like(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]),cmap='gray',alpha=0)
     if overlay == 'deconv':
-        ax.imshow(np.max(ResultsRow['Mask']*data['CYTO_DECONV']['Image'][ResultsRow['Img Index']]) - ResultsRow['Mask']*data['CYTO_DECONV']['Image'][ResultsRow['Img Index']],cmap='gray',alpha=1)
+        ax.imshow(np.max(ResultsRow['Mask']*data['CYTO']['Image'][ResultsRow['Img Index']]) - ResultsRow['Mask']*data['CYTO']['Image'][ResultsRow['Img Index']],cmap='gray',alpha=1)
     ax.axis('off')
     ax.axis('equal')
     
