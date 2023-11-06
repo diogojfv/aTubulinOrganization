@@ -95,8 +95,9 @@ def create_separate_DFs(DF,options):
     if "DNF" in options or "FULL" in options:
         sep["DNF"] = DF[DF.columns[[x.startswith("DNF") for x in DF.columns]]]
 
-    #LINE SEGMENT FEATURES
+    # LINE SEGMENT FEATURES
     if "LSF" in options or "FULL" in options:
+        # 2D 
         LSF = pd.DataFrame()
         LSFcols = DF.columns[[x.startswith("LSF2D") for x in DF.columns]]
         for col in LSFcols:
@@ -110,9 +111,12 @@ def create_separate_DFs(DF,options):
 
             LSF = pd.concat([LSF, aux],axis=1)
         
+        # 1D
+        LSF = pd.concat([LSF, DF[DF.columns[[x.startswith("LSF1D") for x in DF.columns]]]],axis=1)
+        
         sep["LSF"] = LSF
 
-    #CYTOSKELETON NETWORK FEATURES
+    # CYTOSKELETON NETWORK FEATURES
 #     CNF = pd.DataFrame()
 #     CNFcols = DF.columns[[x.startswith("SKNW") for x in DF.columns]]
 #     for col in CNFcols:
@@ -916,6 +920,35 @@ def newtheta(lines):
         thetas += [theta]
     return thetas
 
+def scale_feat(data,feat,scale):
+    #ResultsDF["LSF2D:Distances to Centroid (scaled)"] = scale_feat(ResultsDF,"LSF2D:Distances to Centroid",0.16125)
+    #ResultsDF["LSF1D:N over A 2 (scaled)"] = scale_feat(ResultsDF,"LSF1D:N over A 2",1/0.16125**2)
+    #ResultsDF['LSF1D-RS NucCent Distance (scaled)'] = scale_feat(ResultsDF,"LSF1D:RS NucCent Distance",0.16125)
+    
+    res = copy.deepcopy(data[feat])
+    for index,row in data.iterrows():
+        res[index] = np.array(row[feat]) * scale
+    
+    return res
+
+def getgraphlengths(ResultsRow):
+#     res = []
+#     for index,row in ResultsDF.iterrows():
+#         res += [getgraphlengths(row)]
+
+#     ResultsDF['SKNW:branch-distance (scaled)'] = res
+
+#     ress = [np.std(x) for x in ResultsDF['SKNW:branch-distance (scaled)']]
+
+#     ResultsDF['SKNW:branch-distance (scaled) std_dev'] = ress
+
+#     resm = [np.mean(x) for x in ResultsDF['SKNW:branch-distance (scaled)']]
+
+#     ResultsDF['SKNW:branch-distance (scaled) mean'] = resm
+    
+    ske       = Skeleton(skeleton_image=(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']].astype(float)),spacing=0.1612500) 
+    
+    return ske.path_lengths()
 
 
 def Others(img_cyto,img_nucl):
