@@ -21,18 +21,18 @@ from skimage.draw import disk, circle_perimeter
 from scipy.ndimage import gaussian_filter, grey_closing
 from scipy.spatial import distance_matrix
 from skimage import data, restoration, util
-from roipoly import RoiPoly
-from matplotlib_scalebar.scalebar import ScaleBar
-from biosppy.signals import tools
-from biosppy.stats import pearson_correlation
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
+#from roipoly import RoiPoly
+#from matplotlib_scalebar.scalebar import ScaleBar
+#from biosppy.signals import tools
+#from biosppy.stats import pearson_correlation
+#from sklearn.preprocessing import StandardScaler
+#from sklearn.decomposition import PCA
 
 # Plotting
 import matplotlib.pyplot as plt
 import matplotlib.cm as pltc
 import matplotlib.colors as colors
-import seaborn as sns
+#import seaborn as sns
 
 # Widgets
 import ipywidgets as widgets
@@ -46,17 +46,17 @@ from IPython.display import display
 # from GLCM import GLCM
 
 # Graph
-import sknw
-import networkx as nx
-from scipy.signal import argrelextrema
+#import sknw
+#import networkx as nx
+#from scipy.signal import argrelextrema
 
 # 
-from skan import Skeleton, summarize,draw
-from skan.csr import skeleton_to_csgraph, sholl_analysis,make_degree_image
+#from skan import Skeleton, summarize,draw
+#from skan.csr import skeleton_to_csgraph, sholl_analysis,make_degree_image
 import scipy as sp
 import scipy.sparse
 from matplotlib.patches import Circle
-from framework.ImageFeatures import ImageFeatures
+#from framework.ImageFeatures import ImageFeatures
 
 #from framework.Processing import statistics_from_2D_features
 #from fractal_dimension import fractal_dimension

@@ -111,41 +111,13 @@ import scipy.sparse
 #from analyze_cell import analyze_cell
 #from line_segment_features import line_segment_features
 from matplotlib.patches import Circle
-from ImageFeatures import ImageFeatures
-from Functions import label_image, FeaturesFromCentroid, cv2toski,pylsdtoski,init_import,polar_to_cartesian, truncate_colormap, plot_hist, plot_pie, remove_not1D, quantitative_analysis,hist_bin,hist_lim,create_separate_DFs,branch,graphAnalysis
+from framework.Functions import *
 #from fractal_dimension import fractal_dimension
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
 from skimage.filters import apply_hysteresis_threshold
 
 
-def remove_redundant(DF, corr_thr):
-    redExtractedFeat = DF.columns
-    trmv = []
-    red_feature_vector = copy.deepcopy(DF).to_numpy()
-    #red_feature_vector = red_feature_vector.iloc[: , 8:].to_numpy()
     
-    while 1:
-        oldF = redExtractedFeat
-        
-        # combine current set of features, two at a time
-        comb = combinations(range(len(oldF)), 2) 
-        
-        for f in list(comb):
-            
-            # find correlation between the two features in analysis
-            corr = pearson_correlation(red_feature_vector[:, f[0]], red_feature_vector[:, f[1]])[0]
-            
-            if corr > corr_thr:
-                #print("Highly Corr: ", oldF[f[0]], oldF[f[1]], corr)
-                trmv += [redExtractedFeat[f[0]]]
-                redExtractedFeat = np.delete(oldF, f[0])
-                red_feature_vector = np.delete(red_feature_vector, f[0], axis=1)
-                break
-                
-        if len(redExtractedFeat) == len(oldF):
-            break
-    
-    return red_feature_vector,redExtractedFeat    
 
 def thr_redundant_analysis(threshold_range,group_feat):
     plt.figure()
