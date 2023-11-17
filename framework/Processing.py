@@ -83,65 +83,7 @@ from framework.Importing import *
     
 #     return LSF,DCF,DNF,SKNW,OTHERS,FULL
 
-def create_separate_DFs(DF,options):
-    sep = OrderedDict()
-    INFO = DF[DF.columns[:5]]
-    
-    # DECONVOLUTED CELL FEATURES
-    if "DCF" in options or "FULL" in options:
-        sep["DCF"] = DF[DF.columns[[x.startswith("DCF") for x in DF.columns]]]
-    
-    # DECONVOLUTED NUCLEUS FEATURES
-    if "DNF" in options or "FULL" in options:
-        sep["DNF"] = DF[DF.columns[[x.startswith("DNF") for x in DF.columns]]]
 
-    # LINE SEGMENT FEATURES
-    if "LSF" in options or "FULL" in options:
-        # 2D 
-        LSF = pd.DataFrame()
-        LSFcols = DF.columns[[x.startswith("LSF2D") for x in DF.columns]]
-        for col in LSFcols:
-            prefix = "LSF1D:" + col[6:]
-            aux = pd.DataFrame()
-            for index,row in DF.iterrows():
-                stats = statistics_from_2D_features(prefix,row[col])
-                dados = pd.Series(data=[c[1] for c in stats],index=[c[0] for c in stats])
-                aux = pd.concat([aux, dados.to_frame().T],axis=0)
-            aux.index = DF.index
-
-            LSF = pd.concat([LSF, aux],axis=1)
-        
-        # 1D
-        LSF = pd.concat([LSF, DF[DF.columns[[x.startswith("LSF1D") for x in DF.columns]]]],axis=1)
-        
-        sep["LSF"] = LSF
-
-    # CYTOSKELETON NETWORK FEATURES
-#     CNF = pd.DataFrame()
-#     CNFcols = DF.columns[[x.startswith("SKNW") for x in DF.columns]]
-#     for col in CNFcols:
-#         prefix = "CNF1D:" + col[5:]
-#         aux = pd.DataFrame()
-#         for index,row in DF.iterrows():
-#             stats = statistics_from_2D_features(prefix,row[col])
-#             dados = pd.Series(data=[c[1] for c in stats],index=[c[0] for c in stats])
-#             aux = pd.concat([aux, dados.to_frame().T],axis=0)
-#         aux.index = ResultsDF.index
-        
-#         CNF = pd.concat([CNF, aux],axis=1)
-    if "CNF" in options or "FULL" in options:
-        sep["CNF"] = DF[DF.columns[[x.startswith("SKNW") for x in DF.columns]]]
-    
-    # OTHERS
-    if "OTHERS" in options or "FULL" in options:
-        sep["OTHERS"] = DF[DF.columns[[x.startswith("OTHERS") for x in DF.columns]]]
-    
-    # ALL FEATURES
-    if "FULL" in options:
-        #sep["FULL"] = pd.concat([INFO, [sep[k] for k in sep.keys()]],axis=1)
-        sep["FULL"] = pd.concat([INFO, sep["DCF"], sep["DNF"], sep["LSF"], sep["CNF"], sep["OTHERS"]],axis=1)
-    
-    return sep
 
 
 def ROI_centroid(data,img_id,ROIcoords):

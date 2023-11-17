@@ -72,20 +72,3 @@ from framework.Importing import *
 
 
 
-def df_cytoskeleton_preprocessing(CYTO_df, denominator):
-    TextureDF = pd.DataFrame(columns=['Name','Index','Label','Skeleton'])
-    
-    if len(np.unique([x.shape for x in CYTO_df['Image']])) == 2:
-        for index,row in CYTO_df.iterrows():
-            if type(index) == int:
-                # Cytoskeleton Preprocessing
-                texture,skeleton = cytoskeleton_preprocessing([row['Image'],index],  algorithm='soraia', parameters=[0.03,500],plot=False,save=False)
-
-                # Add to DataFrame
-                new       = pd.DataFrame(data={'Name': [row['Name']], 'Index': [index], 'Label': [denominator(index)], 'Skeleton': [skeleton*1]}, index = [index])
-                TextureDF = pd.concat([TextureDF, new],ignore_index=False)
-                
-                print(">>> Image " + str(index) + " done.")
-
-            
-    return TextureDF
