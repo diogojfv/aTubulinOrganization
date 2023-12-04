@@ -80,6 +80,12 @@ def label_soraia(name):
         label = None
     return number,label
 
+def label_MCFMDA(name):
+    number = name
+    label1,label2 = str(name.split('_')[0]),str(name.split('_')[1])
+    
+    return number,label1,label2
+
 
 def init_import(folder, options, denominator):
     res = OrderedDict()
@@ -99,10 +105,15 @@ def init_import(folder, options, denominator):
     # GRAY-SCALE (2D) DECONVOLUTED CYTOSKELETON IMAGES
     if "CYTO" in options:
         DeconvDF = pd.DataFrame(columns=['Path','Name','Label','Image'])
+        if denominator == label_MCFMDA:
+            DeconvDF = pd.DataFrame(columns=['Path','Name','Label1','Label2','Image'])
         for img in os.listdir(folder + "\\CYTO"):
             path     = folder + "\\CYTO\\" + img
             image    = cv2.imread(path,-1)  # Size: (1040,1388)
-            new      = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img)[1]], 'Image': [image]}, index = [denominator(img)[0]])
+            if denominator == label_MCFMDA:
+                new  = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label1': [denominator(img)[1]],'Label2': [denominator(img)[2]] ,'Image': [image]}, index = [denominator(img)[0]])
+            else:
+                new  = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img)[1]], 'Image': [image]}, index = [denominator(img)[0]])
             DeconvDF = pd.concat([DeconvDF, new], axis=0,ignore_index=False)
         res["CYTO"] = DeconvDF
         print(">>> [CYTO] added.")
@@ -110,10 +121,15 @@ def init_import(folder, options, denominator):
     # GRAY-SCALE (2D) DECONVOLUTED NUCLEI IMAGES
     if "NUCL" in options:
         NucleiDeconvDF = pd.DataFrame(columns=['Path','Name','Label','Image'])
+        if denominator == label_MCFMDA:
+            NucleiDeconvDF = pd.DataFrame(columns=['Path','Name','Label1','Label2','Image'])
         for img in os.listdir(folder + "\\NUCL"):
             path           = folder + "\\NUCL\\" + img
             image          = cv2.imread(path,-1)
-            new            = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [denominator(img)[1]], 'Image': [image]}, index = [denominator(img)[0]])
+            if denominator == label_MCFMDA:
+                new  = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label1': [denominator(img)[1]],'Label2': [denominator(img)[2]] ,'Image': [image]}, index = [denominator(img)[0]])
+            else:
+                new  = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img)[1]], 'Image': [image]}, index = [denominator(img)[0]])
             NucleiDeconvDF = pd.concat([NucleiDeconvDF, new], axis=0,ignore_index=False)
         res["NUCL"] = NucleiDeconvDF
         print(">>> [NUCL] added.")

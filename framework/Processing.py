@@ -49,6 +49,21 @@ from framework.Importing import *
 #from fractal_dimension import fractal_dimension
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
 
+def centroid_find(ResultsRow):
+    x_,y_   = np.where((ResultsRow['Mask']*1) != 0)
+    imgIndex = ResultsRow['Img Index']
+    # Find centroid
+    for index,row in CentroidsDF[imgIndex].iterrows():
+        if (round(row['Centroid'][0]),round(row['Centroid'][1])) in list(zip(x_,y_)):
+            centroid = (row['Centroid'][1],row['Centroid'][0])
+            break
+    try:
+        centroid
+    except:
+        centroid = (0,0)
+        print(index,'centroid not found. set to (0,0)')
+        
+    return centroid
 
 
 def create_separate_DFs(DF,options):
@@ -130,8 +145,6 @@ def create_separate_DFs(DF,options):
     
     return sep
 
-
-
 # def create_separate_DFs(DF):
 #     global LSF
     
@@ -161,7 +174,39 @@ def create_separate_DFs(DF,options):
 #     return LSF,DCF,DNF,SKNW,OTHERS,FULL
 
 
+# RESULTDF FEATURE LINES
+def skeleton_to_lines(ResultsRow):
+    ske       = Skeleton(skeleton_image=(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]).astype(float)) 
+    
+    lines = []
+    for b in range(ske.n_paths):
+        # Get path coordinates
+        brcoords = ske.path_coordinates(b)
+        
+        # Check if filament is 100% horizontal to avoid RankWarning in polyfit:
+        horiz = False
+        if len(np.unique(brcoords[:,0]))==1:
+            horiz = True
+            
+        # Fit
+        if horiz != True:
+            coefficients = np.polyfit(brcoords[:,0], brcoords[:,1], 1)
+            x_values = np.linspace(min(brcoords[:, 0]), max(brcoords[:, 0]), num = 2,endpoint=True)
+            y_values = np.polyval(coefficients, x_values)
+            lines += [((round(y_values[0],3),round(x_values[0],3)),
+                       (round(y_values[1],3),round(x_values[1],3)))]
+        else:
+            lines += [((round(brcoords[0][1],3),round(brcoords[0][0],3)),
+                       (round(brcoords[-1][1],3),round(brcoords[-1][0],3)))]
+        
+    return lines
+    
+# ResultsDF['Lines LinReg'] = [skeleton_to_lines(row) for index,row in ResultsDF.iterrows()]
 
+
+
+
+# ----------
 
 def ROI_centroid(data,img_id,ROIcoords):
     centroid_list = []
@@ -1015,25 +1060,7 @@ def HI(angles):
 
     return HI
     
-def OOP(angles):
-    theta_rad = np.array(angles)*np.pi/180
 
-    OrderTensors = []
-    for ang in theta_rad:
-        re = np.cos(ang)
-        im = np.sin(ang)
-        OT = np.array([[re*re,re*im],[im*re,im*im]])
-        OrderTensors += [2*OT - np.array([[1,0],[0,1]])]
-
-    MOT11 = np.mean([ot[0,0] for ot in OrderTensors])
-    MOT12 = np.mean([ot[0,1] for ot in OrderTensors])
-    MOT22 = np.mean([ot[1,1] for ot in OrderTensors])
-    MOT   = np.array([[MOT11,MOT12],[MOT12,MOT22]])
-
-    from numpy.linalg import eig
-    evals,evecs=eig(MOT)
-
-    return np.max(evals)
 
 def subsample_mask(mask,frac):
     x          = np.arange(0, mask.shape[0]-1, frac)

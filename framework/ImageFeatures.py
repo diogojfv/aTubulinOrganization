@@ -120,6 +120,24 @@ def fractal_dimension(Z, threshold=0.9):
     coeffs = np.polyfit(np.log(sizes), np.log(counts), 1)
     return -coeffs[0]
 
+def wavelets(ResultsRow,wavelet,level):
+    import pywt
+    
+    patch = ResultsRow['Patches'][1]
+    coeffs = pywt.wavedec2(patch, wavelet, level=level)
+
+    EL  = np.sum(np.square(coeffs[0]))     # Energy of the low-frequency channel
+    EH1 = np.sum(np.square(coeffs[1][0]))  # Energy of the First high-frequency channel
+    EH2 = np.sum(np.square(coeffs[1][1]))  # Energy of the Second high-frequency channel
+    EH3 = np.sum(np.square(coeffs[1][2]))  # Energy of the Third high-frequency channel
+
+    return EL,EH1,EH2,EH3
+
+# ResultsDF[["DCF:Wavelets - EL", "DCF:Wavelets - EH1", "DCF:Wavelets - EH2", "DCF:Wavelets - EH3"]] = ResultsDF.apply(lambda row: wavelets(row, 'haar', 3), axis=1, result_type='expand')
+
+
+
+
 def hcorr(idd):
     if idd == 9:
         z = 8.7466670
