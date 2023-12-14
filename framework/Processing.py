@@ -49,7 +49,9 @@ from framework.Importing import *
 #from fractal_dimension import fractal_dimension
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
 
-def centroid_find(ResultsRow):
+
+# CENTROIDDF IS NOT DEFINED!
+def centroid_find(ResultsRow,CentroidsDF):
     x_,y_   = np.where((ResultsRow['Mask']*1) != 0)
     imgIndex = ResultsRow['Img Index']
     # Find centroid

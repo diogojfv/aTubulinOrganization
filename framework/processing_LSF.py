@@ -44,7 +44,7 @@ from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_n
 from framework.Importing import *
 #from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
 #from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
-
+from framework.Processing import centroid_find
 #from framework.visualization import truncate_colormap, plot_hist, plot_pie
 #from fractal_dimension import fractal_dimension
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
@@ -68,8 +68,8 @@ def lines_theta(ResultsRow):
 
 #ResultsDF["LSF2D:Theta (LinReg)"] = [lines_theta(row) for index,row in ResultsDF.iterrows()]
 
-def lines_cytonuc_dist(ResultsRow):
-    centroid = centroid_find(ResultsRow)
+def lines_cytonuc_dist(ResultsRow,CentroidsDF):
+    centroid = centroid_find(ResultsRow,CentroidsDF)
     
     dists = []
     for line in ResultsRow['Lines LinReg']:
@@ -84,8 +84,8 @@ def lines_cytonuc_dist(ResultsRow):
 #ResultsDF["LSF2D:Distances to Centroid (LinReg) (scaled)"] = [lines_cytonuc_dist(row) for index,row in ResultsDF.iterrows()]
 
 
-def lines_cytonuc_alpha(ResultsRow):
-    centroid = centroid_find(ResultsRow)
+def lines_cytonuc_alpha(ResultsRow,CentroidsDF):
+    centroid = centroid_find(ResultsRow,CentroidsDF)
     
     alphas = []
     for line in ResultsRow['Lines LinReg']:
@@ -176,7 +176,7 @@ def lines_N(ResultsRow):
 # ResultsDF['LSF1D:Number of Lines (LinReg)'] = [lines_N(row) for _,row in ResultsDF.iterrows()]
 
 
-def lines_RS_cent_dist(ResultsRow):
+def lines_RS_cent_dist(ResultsRow,CentroidsDF):
     x_,y_   = np.where((ResultsRow['Mask']*1) != 0)
     imgIndex = ResultsRow['Img Index']
     # Find centroid
@@ -193,7 +193,7 @@ def lines_RS_cent_dist(ResultsRow):
     rspos = np.array([ResultsRow['LSF:Radial Pos 2'][1],ResultsRow['LSF:Radial Pos 2'][0]])
     return np.linalg.norm(np.array(centroid) - rspos)*0.16125
 
-ResultsDF["LSF1D:RS NucCent Distance (LinReg) (scaled)"] = [lines_RS_cent_dist(row) for index,row in ResultsDF.iterrows()]
+#ResultsDF["LSF1D:RS NucCent Distance (LinReg) (scaled)"] = [lines_RS_cent_dist(row) for index,row in ResultsDF.iterrows()]
 
 
 
