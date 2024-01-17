@@ -1,5 +1,4 @@
-# Math, image processing and other useful libraries
-from __future__ import print_function, unicode_literals, absolute_import, division
+# PACKAGES
 import os
 import pandas as pd
 import numpy as np
@@ -8,20 +7,16 @@ from collections import OrderedDict
 import copy
 import math
 import pickle
-from matplotlib.ticker import MaxNLocator
 from itertools import combinations
-
-
-# Plotting
+import tifffile as tiffio
+import scipy.misc
 import matplotlib.pyplot as plt
 import matplotlib.cm as pltc
 import matplotlib.colors as colors
 
+### LABEL FUNCTIONS
 
-import tifffile as tiffio
-import scipy.misc
-
-
+# SOFIA DATASET
 def label_tubulin(name):
     number = int(name.split('_')[1])
     
@@ -41,6 +36,7 @@ def label_tubulin(name):
         label = None
     return number,label
 
+# SOFIA 3D DATASET
 def label_tubulin3D(name):
     number = int(name.split('_')[0])
     
@@ -60,10 +56,12 @@ def label_tubulin3D(name):
         label = None
     return number,label
 
+# SPOCC DATASET
 def label_SPOCC(name):
     hour = name.split("_")[1]
     return hour
 
+# SORAIA DATASET
 def label_soraia(name):
     number = int(name.split("_")[1])
     if number <= 3:
@@ -80,6 +78,7 @@ def label_soraia(name):
         label = None
     return number,label
 
+# NUNO DATASET
 def label_MCFMDA(name):
     number = name
     label1,label2 = str(name.split('_')[0]),str(name.split('_')[1])
@@ -87,7 +86,11 @@ def label_MCFMDA(name):
     return number,label1,label2
 
 
+### IMPORTING 
+
+# IMPORT IMAGES FROM DIRECTORY INTO DATAFRAME / DICT KEY
 def init_import(folder, options, denominator):
+    # requires images to be .tif to extract voxel size
     res = OrderedDict()
     
     # RGB NUCLEI + TUBULIN IMAGES
@@ -95,9 +98,10 @@ def init_import(folder, options, denominator):
         OriginalDF = pd.DataFrame(columns=['Name','Label','Image'])
         for img in os.listdir(folder + "\\RGB"):
             path       = folder + "\\RGB\\" + img
+            zres, xres, yres = getvoxelsize(path)
             image      = cv2.imread(path,cv2.IMREAD_COLOR)  # Size: (1040, 1388, 3)
             img_id     = int(img.split('_')[0])+1 # add 1 to keep the same id as deconvoluted imgs
-            new        = pd.DataFrame(data={'Name': [img], 'Label': [denominator(img)], 'Image': [image]}, index = [img])
+            new        = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [denominator(img)], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image]}, index = [img])
             OriginalDF = pd.concat([OriginalDF, new], axis=0,ignore_index=False)
         res["RGB"] = OriginalDF
         print(">>> [RGB] added.")
@@ -105,15 +109,11 @@ def init_import(folder, options, denominator):
     # GRAY-SCALE (2D) DECONVOLUTED CYTOSKELETON IMAGES
     if "CYTO" in options:
         DeconvDF = pd.DataFrame(columns=['Path','Name','Label','Image'])
-        if denominator == label_MCFMDA:
-            DeconvDF = pd.DataFrame(columns=['Path','Name','Label1','Label2','Image'])
         for img in os.listdir(folder + "\\CYTO"):
             path     = folder + "\\CYTO\\" + img
+            zres, xres, yres = getvoxelsize(path)
             image    = cv2.imread(path,-1)  # Size: (1040,1388)
-            if denominator == label_MCFMDA:
-                new  = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label1': [denominator(img)[1]],'Label2': [denominator(img)[2]] ,'Image': [image]}, index = [denominator(img)[0]])
-            else:
-                new  = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img)[1]], 'Image': [image]}, index = [denominator(img)[0]])
+            new  = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img)[1]], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image]}, index = [denominator(img)[0]])
             DeconvDF = pd.concat([DeconvDF, new], axis=0,ignore_index=False)
         res["CYTO"] = DeconvDF
         print(">>> [CYTO] added.")
@@ -121,15 +121,11 @@ def init_import(folder, options, denominator):
     # GRAY-SCALE (2D) DECONVOLUTED NUCLEI IMAGES
     if "NUCL" in options:
         NucleiDeconvDF = pd.DataFrame(columns=['Path','Name','Label','Image'])
-        if denominator == label_MCFMDA:
-            NucleiDeconvDF = pd.DataFrame(columns=['Path','Name','Label1','Label2','Image'])
         for img in os.listdir(folder + "\\NUCL"):
             path           = folder + "\\NUCL\\" + img
+            zres, xres, yres = getvoxelsize(path)
             image          = cv2.imread(path,-1)
-            if denominator == label_MCFMDA:
-                new  = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label1': [denominator(img)[1]],'Label2': [denominator(img)[2]] ,'Image': [image]}, index = [denominator(img)[0]])
-            else:
-                new  = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img)[1]], 'Image': [image]}, index = [denominator(img)[0]])
+            new  = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [denominator(img)[1]], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image]}, index = [denominator(img)[0]])
             NucleiDeconvDF = pd.concat([NucleiDeconvDF, new], axis=0,ignore_index=False)
         res["NUCL"] = NucleiDeconvDF
         print(">>> [NUCL] added.")
@@ -140,8 +136,9 @@ def init_import(folder, options, denominator):
         TenDF = pd.DataFrame(columns=['Path','Name','Label','Image'])
         for img in os.listdir(folder + "\\CYTO3D"):
             path    = folder + "\\CYTO3D\\" + img
+            zres, xres, yres = getvoxelsize(path)
             image   = tiffio.imread(path)
-            new      = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img)[1]], 'Image': [image]}, index = [denominator(img)[0]])
+            new      = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img)[1]], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image]}, index = [denominator(img)[0]])
             TenDF   = pd.concat([TenDF, new], axis=0,ignore_index=False)
         res["CYTO3D"] = TenDF
         print(">>> [CYTO3D] added.")
@@ -151,16 +148,38 @@ def init_import(folder, options, denominator):
         TenDF = pd.DataFrame(columns=['Path','Name','Label','Image'])
         for img in os.listdir(folder + "\\NUCL3D"):
             path    = folder + "\\NUCL3D\\" + img
+            zres, xres, yres = getvoxelsize(path)
             image   = tiffio.imread(path)
-            new      = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img)[1]], 'Image': [image]}, index = [denominator(img)[0]])
+            new      = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img)[1]], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image]}, index = [denominator(img)[0]])
             TenDF   = pd.concat([TenDF, new], axis=0,ignore_index=False)
         res["NUCL3D"] = TenDF
         print(">>> [NUCL3D] added.")
         
     return res
 
+# EXTRACT VOXEL SIZE FROM IMG
+def getvoxelsize(folder):
+    import tifffile as tf
+    with tf.TiffFile(folder) as tif:
+        ij_metadata = tif.imagej_metadata
+        num_pixels_x, units_x = tif.pages[0].tags['XResolution'].value
+        xres = units_x / num_pixels_x
+        num_pixels_y, units_y = tif.pages[0].tags['YResolution'].value
+        yres = units_y / num_pixels_y
 
+    if ij_metadata is not None:
+        try:
+            zres = ij_metadata['spacing']
+        except:
+            #print('Image is 2D. Using default voxel height (z = 1)')
+            return 1,xres,yres
+    else:
+        print('Using default voxel height (z = 1)')
+        zres = 1
 
+    return zres,xres,yres
+
+# WIDGET IMPORT
 def widget_import_dataset():
     import os
     import ipywidgets as widgets

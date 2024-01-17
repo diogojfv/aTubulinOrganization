@@ -58,9 +58,9 @@ import scipy.sparse
 from matplotlib.patches import Circle
 from framework.ImageFeatures import ImageFeatures,getvoxelsize
 from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,branch,graphAnalysis
-from framework.Importing import *
+from framework.importing import *
 #from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
-from framework.Processing import process3Dnuclei,analyze_cell
+from framework.processing import process3Dnuclei,analyze_cell
 
      
 def set_background(color): 

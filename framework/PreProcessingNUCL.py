@@ -58,9 +58,9 @@ import scipy.sparse
 from matplotlib.patches import Circle
 from framework.ImageFeatures import ImageFeatures,getvoxelsize
 from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,branch,graphAnalysis
-from framework.Importing import *
+from framework.importing import *
 #from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
-from framework.Processing import process3Dnuclei,analyze_cell
+from framework.processing import process3Dnuclei,analyze_cell
 #from framework.visualization import truncate_colormap, plot_hist, plot_pie
 #from fractal_dimension import fractal_dimension
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
@@ -132,13 +132,13 @@ def df_nuclei_preprocessing(NUCL_df,dir_nucldec,dir_masks,algorithm,algorithm_sp
     otsu_count = 0
     for index,row in NUCL_df.iterrows():
         print(">>>>>> SEGMENTATION: Image " + str(row['Name']))
-        nuclei_segmentation(row['Image'],row['Name'],dir_nucldec, dir_masks,algorithm,[algorithm_specs[0][otsu_count],algorithm_specs[1]])
+        nuclei_segmentation(row['Path'],row['Image'],row['Name'],dir_nucldec, dir_masks,algorithm,[algorithm_specs[0][otsu_count],algorithm_specs[1]])
         
         if type(algorithm_specs[0]) == list and row['Name'].split('_')[-1] == 'ch00.tif':
             otsu_count +=1
 
     # Nuclei preprocessing
     for index,row in NUCL_df.iterrows():
-        NUCL_PRE = nuclei_preprocessing(row['Image'],row['Name'],dir_masks,plot,save)
+        NUCL_PRE = nuclei_preprocessing(row['Path'],row['Image'],row['Name'],dir_masks,plot,save)
         
     return NUCL_PRE
