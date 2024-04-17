@@ -39,7 +39,7 @@ from skan.csr import skeleton_to_csgraph, sholl_analysis,make_degree_image
 import scipy as sp
 import scipy.sparse
 from matplotlib.patches import Circle
-from framework.ImageFeatures import ImageFeatures,getvoxelsize
+from framework.processing_DCF import *
 from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,branch,graphAnalysis
 from framework.importing import *
 #from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
@@ -48,6 +48,130 @@ from framework.importing import *
 #from framework.visualization import truncate_colormap, plot_hist, plot_pie
 #from fractal_dimension import fractal_dimension
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
+
+def processing_cell(rowROI,data,LSFparams):
+    """
+    rowROI - dataframe with specific ROI corresponding to a cell
+    data   - data dict with the following keys:
+                  - CYTO and CYTO_PRE
+                  - NUCL and NUCL_PRE
+    
+    LSFparams - ALR threshold 
+    
+
+    """
+    global img_id,x_,y_
+    
+    # Useful variables:
+    img_id  = rowROI['Index']
+    name    = rowROI['Name']
+    label   = rowROI['Label']
+    mask    = rowROI['ROImask'] # 1040 x 1388
+    
+    # Isolate deconvoluted cytoskeleton and nuclei within mask and normalize intensities
+    cdeconv = data['CYTO']['Image'][img_id]
+    ndeconv = data['NUCL']['Image'][img_id]
+
+    cyto        = mask * cdeconv
+    cyto_norm   = (cyto-np.min(cyto))/(np.max(cyto)-np.min(cyto)) #cyto_norm   = mask * (cdeconv / np.max(cdeconv)) / np.max(cyto) #aux_f
+    ndeconv         = mask * ndeconv
+    ndeconv_norm   = (ndeconv-np.min(ndeconv))/(np.max(ndeconv)-np.min(ndeconv)) #ndeconv_norm   = mask * (ndeconv / np.max(ndeconv)) / np.max(ndeconv)
+
+    # Isolate skeleton within mask
+    esqueleto       = data['CYTO_PRE']['Skeleton'][img_id] * 1
+    mesqueleto      = mask * esqueleto                              # aux_
+    
+    # Isolate skeleton with intensities within mask
+    mesqueleto_int  = mesqueleto * cdeconv
+    mesqueleto_norm = mesqueleto * cyto_norm
+    
+    # Get x and y coordinates within mask and get patches
+    x_,y_   = np.where((mask*1) != 0) # resolver aqui para fazer um retangulo de branco com pad2 para as figuras ficarem direitas?
+    patch_sk   = mesqueleto[min(x_):max(x_),min(y_):max(y_)]
+    patch_cy   = cyto_norm[min(x_):max(x_),min(y_):max(y_)]
+    patch_nc   = ndeconv_norm[min(x_):max(x_),min(y_):max(y_)]
+    
+    # Get cell's centroid
+    centroid_id,centroid = ROI_centroid(data,img_id,[x_,y_])
+    
+    
+    # NUCLEUS
+    aux_n = np.zeros_like(ndeconv)
+    rownuc = data['NUCL_PRE'].loc[centroid_id]
+
+    #a = list(zip(rownuc['Nucleus Mask'][0],rownuc['Nucleus Mask'][1]))
+    aux_n[rownuc['Nucleus Mask'][0],rownuc['Nucleus Mask'][1]] = 1
+
+    aux_n_ = aux_n * ndeconv_norm
+
+    try:
+        contourr = data['NUCL_PRE'].loc[centroid_id]['Contour'] 
+        cr       = contourr.reshape((contourr.shape[0],contourr.shape[2]))
+    except:
+        contourr = data['NUCL_PRE'].loc[centroid_id]['Contour'][0]
+        cr       = contourr.reshape((contourr.shape[0],contourr.shape[2]))
+    
+    
+    ### DECONVOLUTED CELL FEATURES (DCFs)
+#     # CYTO
+#     feats_all                    = processingDCF(cyto_norm,(cyto_norm != 0)*1, mesqueleto_norm,features,data['CYTO'].loc[img_id]['Resolution'],data['CYTO'].loc[img_id]['Path'])
+#     feats_labels_, feats_values_ = feats_all.print_features(print_values = False)
+#     feats_labels_, feats_values_ = remove_not1D(feats_labels_,feats_values_)
+#     feats_labels_                = ['DCF:' + ftf for ftf in feats_labels_]
+    
+#     # NUCL
+#     feats_all_n                      = processingDCF(ndeconv_norm,(ndeconv_norm != 0)*1,'None',features,data['NUCL'].loc[img_id]['Resolution'],data['NUCL'].loc[img_id]['Path'])
+#     feats_labels_n_, feats_values_n_ = feats_all_n.print_features(print_values = False)
+#     feats_labels_n_, feats_values_n_ = remove_not1D(feats_labels_n_,feats_values_n_)
+#     feats_labels_n_                  = ['DNF:' + ftn for ftn in feats_labels_n_]
+    
+    
+    ### LINE SEGMENT FEATURES (LSFs)
+    #lines, median_points, cytocenter, LSFs = line_segment_features(features,mesqueleto,img_id,mask,patch,(x_,y_),centroid,False)
+    lines = skeleton_to_lines(mesqueleto,res_thr = LSFparams['res_thr'])
+
+    ### CYTOSKELETON NETWORK FEATURES (CNFs)
+    global int_ske, graph, graph_res, shollhist, cncd, pxlcount
+    #graph,CNFs,shollhist = cyto_graph_features(mesqueleto_norm,features,[x_,y_],[aux_n_,centroid,cr],mask,False) #int_ske         = (mesqueleto * aux_f) / np.max(aux_f) 
+    graph       = Skeleton(skeleton_image=(mask*data['CYTO_PRE']['Skeleton'][img_id]).astype(float)) 
+    
+    
+    
+    # Add to DataFrame
+    global ResultsDF,new
+    if 'ResultsDF' not in globals():
+        ResultsDF = pd.DataFrame(columns = [['Name'] + 
+                                           ['Img Index'] + 
+                                           ['Label'] + 
+                                           ['Mask'] + 
+                                           ['Patch:Skeleton'] + 
+                                           ['Patch:Deconvoluted Cyto'] + 
+                                           ['Patch:Deconvoluted Nucl'] + 
+                                           ['Patch:Skeleton Max'] + 
+                                           ['Offset'] + 
+                                           ['Nucleus Contour'] + 
+                                           ['Nucleus Centroid'] + 
+                                           ['Graph'] + 
+                                           ['Lines']])
+
+    new       = pd.Series([name] + 
+                          [img_id] + 
+                          [label] + 
+                          [mask] + 
+                          [patch_sk] + 
+                          [patch_cy] + 
+                          [patch_nc] + 
+                          [mesqueleto] + 
+                          [[x_,y_]] + 
+                          [cr] + 
+                          [centroid] + 
+                          [graph] +
+                          [lines], index=ResultsDF.columns)
+
+
+    ResultsDF = pd.concat([ResultsDF,new.to_frame().T],axis=0,ignore_index=True)
+         
+    return ResultsDF
 
 
 # CENTROIDDF IS NOT DEFINED!
@@ -66,6 +190,176 @@ def centroid_find(ResultsRow,CentroidsDF):
         print(index,'centroid not found. set to (0,0)')
         
     return centroid
+
+
+def ROI_centroid(data,img_id,ROIcoords):
+    centroid_list = []
+    
+    if 'NUCL_PRE' in data.keys():
+        data_ = data['NUCL_PRE'][data['NUCL_PRE']['Img Index'] == img_id]
+        axa = 0
+        axb = 1
+    if '3D' in data.keys():
+        data_ = data['3D'][data['3D']['Img Index'] == img_id]
+        axa = 1
+        axb = 2
+    
+    # GET: centroid inside ROI indexes
+    for idx,row in data_.iterrows():
+        if (round(row['Centroid'][axa]),round(row['Centroid'][axb])) in list(zip(ROIcoords[axa],ROIcoords[axb])):
+            centroid_list += [idx]
+    if centroid_list == []:  print("Error: No centroids within ROI"); return
+    if len(centroid_list) > 1: print("Warning: More than 1 centroid identified within ROI");
+    
+    # PLOT: first centroid identified and nucleus contour
+    centroid = data_.loc[centroid_list[0]]['Centroid']
+    
+    return centroid_list[0],centroid
+
+
+### FUNCTIONS FOR ALR
+def branch_check_horiz(branch):
+    if len(np.unique(branch[:,0]))==1:
+        return True
+    else:
+        return False
+    
+def perpendicular_distance(point, line):
+    # Calculate the perpendicular distance from a point to a line
+    return np.abs(np.cross(line[1] - line[0], point - line[0])) / np.linalg.norm(line[1] - line[0])
+
+def branch_check_horizsim(branch):
+    return np.all(branch[:,0] == branch[:,0][::-1])
+
+def lines_truncate_endpoints(branch,xvals,yvals):
+    dists_left  = [np.linalg.norm((np.array(clinha) - branch[0])) for clinha in zip(xvals,yvals)]
+    dists_right = [np.linalg.norm((np.array(clinha) - branch[-1])) for clinha in zip(xvals,yvals)]
+    
+    index_left  = np.argmin(dists_left)
+    index_right = np.argmin(dists_right)    
+   
+    x_left, y_left   = xvals[index_left], yvals[index_left]
+    x_right, y_right = xvals[index_right], yvals[index_right]
+    
+    if x_left > x_right:
+        auxx,auxy = x_left,y_left
+        x_left,y_left = x_right,y_right
+        x_right,y_right = auxx,auxy
+
+    x_values_segment = xvals[(xvals > x_left) & (xvals < x_right)]
+    y_values_segment = yvals[(xvals > x_left) & (xvals < x_right)]
+    
+    return x_values_segment,y_values_segment
+
+def check_equidistant(branch,xvals,yvals):
+    return np.argmin([np.linalg.norm((np.array(clinha) - branch[0])) for clinha in zip(xvals,yvals)]) == np.argmin([np.linalg.norm((np.array(clinha) - branch[-1])) for clinha in zip(xvals,yvals)])
+
+def skeleton_to_lines(skeleton,res_thr = 4):
+    ske       = Skeleton(skeleton_image=(skeleton*1).astype(float)) 
+    
+    #print('done',ResultsRow.name)
+    lines = []
+    for b in range(ske.n_paths):
+        global brcoords,coefficients,residuals
+        brcoords = ske.path_coordinates(b)
+        
+        # ISOLATED CYCLE
+        if np.all(brcoords[0] == brcoords[-1]) == True:
+            coefficients, residuals, rank, singular_values, rcond = np.polyfit(brcoords[:-1,0], brcoords[:-1,1], 1,full=True)
+            x_values = np.linspace(min(brcoords[:-1, 0])-5, max(brcoords[:-1, 0])+5, num=300)
+            y_values = np.polyval(coefficients, x_values)
+            x_values_segment,y_values_segment = lines_truncate_endpoints(brcoords[:-1],x_values,y_values)
+            lines += [((round(y_values_segment[0],3),round(x_values_segment[0],3)),
+                       (round(y_values_segment[-1],3),round(x_values_segment[-1],3)))]
+            continue
+                               
+        # Fit
+        if branch_check_horiz(brcoords) != True:
+            coefficients, residuals, rank, singular_values, rcond = np.polyfit(brcoords[:,0], brcoords[:,1], 1,full=True)
+            x_values = np.linspace(min(brcoords[:, 0])-5, max(brcoords[:, 0])+5, num=300)
+            y_values = np.polyval(coefficients, x_values)
+            
+            # CASE 1 - COLINEAR
+            if len(residuals) == 0:
+                x_values_segment,y_values_segment = lines_truncate_endpoints(brcoords,x_values,y_values)
+                lines += [((round(y_values_segment[0],3),round(x_values_segment[0],3)),
+                           (round(y_values_segment[-1],3),round(x_values_segment[-1],3)))]
+                continue
+            
+            # CASE 3 - HIGH RESIDUE
+            if len(residuals) > 0 and residuals[0] / len(brcoords) > res_thr:
+                # Inspect most distant pixel
+                line_vec = (brcoords[0],brcoords[-1])      
+                distances = np.array([perpendicular_distance(point, line_vec) for point in brcoords])
+                max_distance_index = np.argmax(distances)
+                
+                # BRANCH #1
+                brcoords1 = brcoords[:max_distance_index+1] # +1 to include endpoint
+                if branch_check_horiz(brcoords1) == True:
+                    lines += [((round(brcoords1[0][1],3),round(brcoords1[0][0],3)),
+                               (round(brcoords1[-1][1],3),round(brcoords1[-1][0],3)))]
+                else:
+                    coefficients1, residuals1, rank1, singular_values1, rcond1 = np.polyfit(brcoords1[:,0], brcoords1[:,1], 1,full=True)
+                    x_values1 = np.linspace(min(brcoords1[:, 0]) -5, max(brcoords1[:, 0])+5, num=300)
+                    y_values1 = np.polyval(coefficients1, x_values1)
+                    x_values_segment,y_values_segment = lines_truncate_endpoints(brcoords1,x_values1,y_values1)
+                    
+                    if len(x_values_segment) == 0 and len(y_values_segment) == 0:
+                        print('symmetric branch ', check_equidistant(brcoords1,x_values,y_values),brcoords1)
+                        lines += [((round(brcoords1[0][1],3),round(brcoords1[0][0],3)),
+                                   (round(brcoords1[-1][1],3),round(brcoords1[-1][0],3)))]
+                    else:                    
+                        lines += [((round(y_values_segment[0],3),round(x_values_segment[0],3)),
+                                   (round(y_values_segment[-1],3),round(x_values_segment[-1],3)))]
+                
+                # BRANCH #2
+                brcoords2 = brcoords[max_distance_index:]
+                if branch_check_horiz(brcoords2) == True:
+                    lines += [((round(brcoords2[0][1],3),round(brcoords2[0][0],3)),
+                               (round(brcoords2[-1][1],3),round(brcoords2[-1][0],3)))]
+                else:
+                    coefficients2, residuals2, rank2, singular_values2, rcond2 = np.polyfit(brcoords2[:,0], brcoords2[:,1], 1,full=True)
+                    x_values2 = np.linspace(min(brcoords2[:, 0])-5, max(brcoords2[:, 0])+5, num=300)
+                    y_values2 = np.polyval(coefficients2, x_values2)
+                    x_values_segment,y_values_segment = lines_truncate_endpoints(brcoords2,x_values2,y_values2)
+
+                    if len(x_values_segment) == 0 and len(y_values_segment) == 0:
+                        print('symmetric branch ', check_equidistant(brcoords2,x_values,y_values), brcoords2)
+                        lines += [((round(brcoords2[0][1],3),round(brcoords2[0][0],3)),
+                                   (round(brcoords2[-1][1],3),round(brcoords2[-1][0],3)))]
+                    else:                    
+                        lines += [((round(y_values_segment[0],3),round(x_values_segment[0],3)),
+                                   (round(y_values_segment[-1],3),round(x_values_segment[-1],3)))]
+                
+                continue
+                
+            # CASE 4 - LOW RESIDUE
+            if len(residuals) > 0 and residuals[0] / len(brcoords) < res_thr:
+                x_values_segment,y_values_segment = lines_truncate_endpoints(brcoords,x_values,y_values)
+                if len(x_values_segment) == 0 and len(y_values_segment) == 0:
+                    print('symmetric branch ', check_equidistant(brcoords,x_values,y_values), brcoords)
+                    lines += [((round(brcoords[0][1],3),round(brcoords[0][0],3)),
+                               (round(brcoords[-1][1],3),round(brcoords[-1][0],3)))]
+                else:
+                    lines += [((round(y_values_segment[0],3),round(x_values_segment[0],3)),
+                               (round(y_values_segment[-1],3),round(x_values_segment[-1],3)))]
+                continue
+                
+        # If Horizontal (no fit)
+        else:
+            lines += [((round(brcoords[0][1],3),round(brcoords[0][0],3)),
+                       (round(brcoords[-1][1],3),round(brcoords[-1][0],3)))]
+    
+    return lines
+
+
+
+
+
+
+
+
+
 
 
 def create_separate_DFs(DF,options):
@@ -177,31 +471,31 @@ def create_separate_DFs(DF,options):
 
 
 # RESULTDF FEATURE LINES
-def skeleton_to_lines(ResultsRow):
-    ske       = Skeleton(skeleton_image=(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]).astype(float)) 
+# def skeleton_to_lines(ResultsRow):
+#     ske       = Skeleton(skeleton_image=(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]).astype(float)) 
     
-    lines = []
-    for b in range(ske.n_paths):
-        # Get path coordinates
-        brcoords = ske.path_coordinates(b)
+#     lines = []
+#     for b in range(ske.n_paths):
+#         # Get path coordinates
+#         brcoords = ske.path_coordinates(b)
         
-        # Check if filament is 100% horizontal to avoid RankWarning in polyfit:
-        horiz = False
-        if len(np.unique(brcoords[:,0]))==1:
-            horiz = True
+#         # Check if filament is 100% horizontal to avoid RankWarning in polyfit:
+#         horiz = False
+#         if len(np.unique(brcoords[:,0]))==1:
+#             horiz = True
             
-        # Fit
-        if horiz != True:
-            coefficients = np.polyfit(brcoords[:,0], brcoords[:,1], 1)
-            x_values = np.linspace(min(brcoords[:, 0]), max(brcoords[:, 0]), num = 2,endpoint=True)
-            y_values = np.polyval(coefficients, x_values)
-            lines += [((round(y_values[0],3),round(x_values[0],3)),
-                       (round(y_values[1],3),round(x_values[1],3)))]
-        else:
-            lines += [((round(brcoords[0][1],3),round(brcoords[0][0],3)),
-                       (round(brcoords[-1][1],3),round(brcoords[-1][0],3)))]
+#         # Fit
+#         if horiz != True:
+#             coefficients = np.polyfit(brcoords[:,0], brcoords[:,1], 1)
+#             x_values = np.linspace(min(brcoords[:, 0]), max(brcoords[:, 0]), num = 2,endpoint=True)
+#             y_values = np.polyval(coefficients, x_values)
+#             lines += [((round(y_values[0],3),round(x_values[0],3)),
+#                        (round(y_values[1],3),round(x_values[1],3)))]
+#         else:
+#             lines += [((round(brcoords[0][1],3),round(brcoords[0][0],3)),
+#                        (round(brcoords[-1][1],3),round(brcoords[-1][0],3)))]
         
-    return lines
+#     return lines
     
 # ResultsDF['Lines LinReg'] = [skeleton_to_lines(row) for index,row in ResultsDF.iterrows()]
 
@@ -210,31 +504,9 @@ def skeleton_to_lines(ResultsRow):
 
 # ----------
 
-def ROI_centroid(data,img_id,ROIcoords):
-    centroid_list = []
-    
-    if 'NUCL_PRE' in data.keys():
-        data_ = data['NUCL_PRE'][data['NUCL_PRE']['Img Index'] == img_id]
-        axa = 0
-        axb = 1
-    if '3D' in data.keys():
-        data_ = data['3D'][data['3D']['Img Index'] == img_id]
-        axa = 1
-        axb = 2
-    
-    # GET: centroid inside ROI indexes
-    for idx,row in data_.iterrows():
-        if (round(row['Centroid'][axa]),round(row['Centroid'][axb])) in list(zip(ROIcoords[axa],ROIcoords[axb])):
-            centroid_list += [idx]
-    if centroid_list == []:  print("Error: No centroids within ROI"); return
-    if len(centroid_list) > 1: print("Warning: More than 1 centroid identified within ROI");
-    
-    # PLOT: first centroid identified and nucleus contour
-    centroid = data_.loc[centroid_list[0]]['Centroid']
-    
-    return centroid_list[0],centroid
 
-def line_segment_features(features,original_img,img_index,mask,patch,xy,centroid,plot):
+
+def line_segment_features_old(features,original_img,img_index,mask,patch,xy,centroid,plot):
     """
     - features     = list of features
     - original_img = original skeleton image
@@ -1127,6 +1399,123 @@ def radialscore(lines,gridpoints,x_,y_):
     mat_scores[x_points,y_points] = scores
     return mat_scores
 
+# def analyze_cell(rowROI,data,algorithm_cyto,algorithm_nuclei,LSFparams,features):
+#     """
+#     rowROI - dataframe with specific ROI corresponding to a cell
+#     data   - data with any key:
+#                   - RGB
+#                   - CYTO with algorithm CYTO_DECONV
+#                   - NUCL with algorithm NUCL_PRE
+#                   - CYTO_PRE with textures and skeleton
+#                   - NUCL_PRE with nuclei masks, contours and centroids
+                  
+#     algorithm_cyto - deconvoluted or rgb or 3d (?)
+#     algorithm_nucl - 
+#     """
+                    
+#     # Useful variables:
+#     img_id  = rowROI['Index']
+#     name    = rowROI['Name']
+#     label   = rowROI['Label']
+    
+#     # 1040 x 1388
+#     mask    = rowROI['ROImask']
+    
+#     if algorithm_cyto == 'deconvoluted':
+#         cdeconv = data['CYTO']['Image'][name]
+#         ndeconv = data['NUCL']['Image'][name]
+        
+#         cyto        = mask * cdeconv
+#         cyto_norm   = (cyto-np.min(cyto))/(np.max(cyto)-np.min(cyto)) #cyto_norm   = mask * (cdeconv / np.max(cdeconv)) / np.max(cyto) #aux_f
+#         ndeconv         = mask * ndeconv
+#         ndeconv_norm   = (ndeconv-np.min(ndeconv))/(np.max(ndeconv)-np.min(ndeconv)) #ndeconv_norm   = mask * (ndeconv / np.max(ndeconv)) / np.max(ndeconv)
+            
+         
+#     esqueleto       = data['CYTO_PRE']['Skeleton'][name] * 1
+#     mesqueleto      = mask * esqueleto                              # aux_
+    
+#     if algorithm_cyto == 'deconvoluted':
+#         mesqueleto_int  = mesqueleto * cdeconv
+#         mesqueleto_norm = mesqueleto * cyto_norm
+#     if algorithm_cyto == 'rgb':
+#         mesqueleto_int  = mesqueleto * orig_cysk
+#         mesqueleto_norm = mesqueleto * orig_cysk / np.max(orig_cysk) 
+        
+#     # Crop skeleton patch
+#     global x_,y_,patch
+#     #x_aux,y_aux = np.where(mesqueleto != 0) # aux_n[rownuc['Nucleus Mask'][0],rownuc['Nucleus Mask'][1]] = 1 desta maneira
+#     x_,y_   = np.where((mask*1) != 0) # resolver aqui para fazer um retangulo de branco com pad2 para as figuras ficarem direitas
+#     patch   = mesqueleto[min(x_):max(x_),min(y_):max(y_)]
+    
+#     # DECONVOLUTED CYTOSKELETON PATCH
+#     global x_f,y_f,patch_f,aux_f      #  = 
+#     x_f,y_f = np.where(cyto_norm != 0)
+#     patch_cyto_norm = cyto_norm[min(x_f):max(x_f),min(y_f):max(y_f)]
+#     #patch_cyto_norm = patch_f / np.max(patch_f)
+    
+#     # GET and PLOT centroid
+#     centroid_id,centroid = ROI_centroid(data,img_id,[x_,y_])
+     
+#     # DECONVOLUTED NUCLEUS PATCH
+#     if algorithm_cyto == 'deconvoluted':
+#         aux_n = np.zeros_like(ndeconv)
+#         rownuc = data['NUCL_PRE'].loc[centroid_id]
+        
+#         #a = list(zip(rownuc['Nucleus Mask'][0],rownuc['Nucleus Mask'][1]))
+#         aux_n[rownuc['Nucleus Mask'][0],rownuc['Nucleus Mask'][1]] = 1
+        
+#         aux_n_ = aux_n * ndeconv_norm
+
+#         try:
+#             contourr = data['NUCL_PRE'].loc[centroid_id]['Contour'] 
+#             cr       = contourr.reshape((contourr.shape[0],contourr.shape[2]))
+#         except:
+#             contourr = data['NUCL_PRE'].loc[centroid_id]['Contour'][0]
+#             cr       = contourr.reshape((contourr.shape[0],contourr.shape[2]))
+        
+# #     patch_n  = aux_n[min(cr[:,1]):max(cr[:,1]),min(cr[:,0]):max(cr[:,0])]
+# #     patch_n_norm = patch_n / np.max(aux_n)
+#     patch_n_norm = aux_n_[min(rownuc['Nucleus Mask'][0]):max(rownuc['Nucleus Mask'][0]),min(rownuc['Nucleus Mask'][1]):max(rownuc['Nucleus Mask'][1])]
+# #     patch_n_norm = patch_n_norm = patch_n / np.max(aux_n)
+    
+# #     # PROCESSING: LINE SEGMENT ANALYSIS
+#     lines, median_points, cytocenter, LSFs = line_segment_features(features,mesqueleto,img_id,mask,patch,(x_,y_),centroid,False)
+    
+
+#     # PROCESSING: **CYTOSKELETONS**
+#     #skel antes era mesqueleto_norm[min(x_):max(x_),min(y_):max(y_)]
+#     feats_all                    = ImageFeatures(cyto_norm,mesqueleto_norm,features,data['CYTO'].loc[name]['Path'])
+#     feats_labels_, feats_values_ = feats_all.print_features(print_values = False)
+#     feats_labels_, feats_values_ = remove_not1D(feats_labels_,feats_values_)
+#     feats_labels_                = ['DCF:' + ftf for ftf in feats_labels_]
+ 
+#     # PROCESSING: **NUCLEI**
+#     feats_all_n                      = ImageFeatures(ndeconv_norm,'None',features,data['NUCL'].loc[name]['Path'])
+#     feats_labels_n_, feats_values_n_ = feats_all_n.print_features(print_values = False)
+#     feats_labels_n_, feats_values_n_ = remove_not1D(feats_labels_n_,feats_values_n_)
+#     feats_labels_n_                  = ['DNF:' + ftn for ftn in feats_labels_n_]
+    
+# #     # PROCESSING: Graph Analysis
+#     global int_ske, graph, graph_res, shollhist, cncd, pxlcount
+#     #int_ske         = (mesqueleto * aux_f) / np.max(aux_f) 
+#     graph,CNFs,shollhist = cyto_graph_features(mesqueleto_norm,features,[x_,y_],[aux_n_,centroid,cr],mask,False)
+    
+# #     # PROCESSING: Others
+#     cncd = Others(cyto_norm,ndeconv_norm)
+
+#     # Add to DataFrame
+#     global ResultsDF,new
+#     if 'ResultsDF' not in globals():
+#         ResultsDF = pd.DataFrame(columns = ['Name'] + ['Img Index'] + ['Label'] + ['Mask'] + ['Patch:Skeleton'] + ['Patch:Deconvoluted Cyto'] + ['Patch:Deconvoluted Nucl'] + ['Patch:Skeleton Max'] + ['Offset'] + ['Nucleus Contour'] + ['Nucleus Centroid'] + ['Cytoskeleton Centroid'] + ['Lines'] + [xç for xç,yç in LSFs] + list(feats_labels_) + list(feats_labels_n_) + [xg for xg,yg in CNFs])
+        
+#     new       = pd.Series([name] + [name] + [label] + [mask] + [patch] + [patch_cyto_norm] + [patch_n_norm] + [mesqueleto] + [[x_,y_]] + [cr] + [centroid] + [cytocenter] + [lines] +  [yç for xç,yç in LSFs] + feats_values_ + feats_values_n_ + [yg for xg,yg in CNFs], index=ResultsDF.columns)
+
+#     ResultsDF = pd.concat([ResultsDF,new.to_frame().T],axis=0,ignore_index=True)
+         
+    
+#     return ResultsDF
+
+
 
 # def analyze_cell(text_img,mask,hough_params,centroids,OriginalDF,DeconvDF,NucleiDeconvDF,algorithm,plot):
 #     # INPUTS:
@@ -1436,7 +1825,34 @@ def radialscore(lines,gridpoints,x_,y_):
                                                                                          
 #     return lines, median_points, centroid_list, centroid, cytocenter, radialSC_pos, features2D, features1D
 
-def df_analyze_cell(data,ROIsDF,specs,features):
+# def df_analyze_cell(data,ROIsDF,specs,features):
+#     # Get labels and remove synthetic images
+#     labels  = list(np.unique(ROIsDF['Label']))
+#     try:
+#         labels.remove('Synthetic')
+#     except:
+#         pass
+
+#     count = 0
+#     for index,row in ROIsDF.iterrows():
+#         # Analyse cell from ROI
+#         #ResultsDF = analyze_cell([skeleton, row['Index']],row['ROImask'],[2,2.5,1],Centroids[row['Index']],OriginalDF,DeconvDF,NucleiDeconvDF,'deconvoluted',False)
+#         try:
+#             ResultsDF = analyze_cell(row,data,specs['algorithm_cyto'],specs['algorithm_nucl'],specs['LSFparams'],features)
+#         except:
+#             print('ERRO em ' + str(count))
+#             pass
+        
+#         # Print progress
+#         print(">>> Progress: " + str(round((count / len(ROIsDF))*100,3)) + "%",count)
+#         count += 1
+        
+# #         if count == 500:
+# #             break
+
+#     return ResultsDF
+
+def df_processing_cell(data,ROIsDF,params):
     # Get labels and remove synthetic images
     labels  = list(np.unique(ROIsDF['Label']))
     try:
@@ -1447,9 +1863,10 @@ def df_analyze_cell(data,ROIsDF,specs,features):
     count = 0
     for index,row in ROIsDF.iterrows():
         # Analyse cell from ROI
-        #ResultsDF = analyze_cell([skeleton, row['Index']],row['ROImask'],[2,2.5,1],Centroids[row['Index']],OriginalDF,DeconvDF,NucleiDeconvDF,'deconvoluted',False)
         try:
-            ResultsDF = analyze_cell(row,data,specs['algorithm_cyto'],specs['algorithm_nucl'],specs['LSFparams'],features)
+            ResultsDF = processing_cell(rowROI           = row,
+                                        data             = data,
+                                        LSFparams        = params)
         except:
             print('ERRO em ' + str(count))
             pass
@@ -1458,10 +1875,38 @@ def df_analyze_cell(data,ROIsDF,specs,features):
         print(">>> Progress: " + str(round((count / len(ROIsDF))*100,3)) + "%",count)
         count += 1
         
-#         if count == 500:
-#             break
+        if count == 5:
+            break
 
     return ResultsDF
+
+# def df_analyze_cell(data,ROIsDF,specs,features):
+#     # Get labels and remove synthetic images
+#     labels  = list(np.unique(ROIsDF['Label']))
+#     try:
+#         labels.remove('Synthetic')
+#     except:
+#         pass
+
+#     count = 0
+#     for index,row in ROIsDF.iterrows():
+#         # Analyse cell from ROI
+#         #ResultsDF = analyze_cell([skeleton, row['Index']],row['ROImask'],[2,2.5,1],Centroids[row['Index']],OriginalDF,DeconvDF,NucleiDeconvDF,'deconvoluted',False)
+# #         try:
+#         if count > 50:
+#             ResultsDF = analyze_cell(row,data,specs['algorithm_cyto'],specs['algorithm_nucl'],specs['LSFparams'],features)
+# #         except:
+# #             print('ERRO em ' + str(count))
+# #             pass
+        
+#         # Print progress
+#         print(">>> Progress: " + str(index) + " " + str(round((count / len(ROIsDF))*100,3)) + "%",count)
+#         count += 1
+        
+# #         if count == 500:
+# #             break
+
+#     return ResultsDF
 
 def process3Dnuclei(dir_masks):
     from skimage.morphology import ball, binary_dilation
@@ -1536,3 +1981,63 @@ def process3Dnuclei(dir_masks):
 #     print('Done. Printing dict.')
 
     return nucDF
+
+
+def df_feature_extractor(ResultsDF,listfeats):
+    resDF = pd.DataFrame()
+    
+    count = 0
+    for index,row in ResultsDF.iterrows():
+        auxDF = feature_extractor(ResultsRow,listfeats)
+        
+        resDF = pd.concat([resDF,auxDF],axis=0,ignore_index=True)
+        
+        count += 1
+        print(">>> Progress: " + str(round((count / len(ResultsDF))*100,3)) + "%",count)
+        
+    return resDF
+
+def feature_extractor(ResultsRow,features):
+    ### DCFs
+    # CYTO
+    feats_all                    = processingDCF(img             = ResultsRow['Patch: Deconvoluted Cyto'],
+                                                 mask            = (ResultsRow['Patch: Deconvoluted Cyto'] != 0)*1,
+                                                 skel            = ResultsRow['Patch: Skeleton'],
+                                                 listfeats       = features,
+                                                 resolution      = ResultsRow['Resolution'],
+                                                 original_folder = data['CYTO'].loc[ResultsRow['Img Index']]['Path'])
+    feats_labels_, feats_values_ = feats_all.print_features(print_values = False)
+    feats_labels_, feats_values_ = remove_not1D(feats_labels_,feats_values_)
+    feats_labels_                = ['DCF:' + ftf for ftf in feats_labels_]
+    
+    # NUCL
+    feats_all_n                      = processingDCF(img             = ResultsRow['Patch: Deconvoluted Nucl'],
+                                                     mask            = (ResultsRow['Patch: Deconvoluted Nucl'] != 0)*1,
+                                                     skel            = 'None',
+                                                     listfeats       = features,
+                                                     resolution      = ResultsRow['Resolution'],
+                                                     original_folder = data['NUCL'].loc[ResultsRow['Img Index']]['Path'])
+    feats_labels_n_, feats_values_n_ = feats_all_n.print_features(print_values = False)
+    feats_labels_n_, feats_values_n_ = remove_not1D(feats_labels_n_,feats_values_n_)
+    feats_labels_n_                  = ['DNF:' + ftn for ftn in feats_labels_n_]
+                                                     
+    
+    ### LSFs
+    LSFs = line_segment_features(ResultsRow = ResultsRow,
+                                 listfeats  = features)
+                                                     
+    ### CNFs
+    CNFs = cyto_network_features(ResultsRow = ResultsRow,
+                                 listfeats  = features)
+    
+    # Amplify Results Row:
+    auxDF = pd.DataFrame(columns = ResultsRow.columns + list(feats_labels_) + list(feats_labels_n_) + [xç for xç,yç in LSFs] + [xg for xg,yg in CNFs])
+        
+    new       = pd.Series(list(ResultsRow.values) + feats_values_ + feats_values_n_ +  [yç for xç,yç in LSFs] + [yg for xg,yg in CNFs], index=auxDF.columns)
+                                                     
+    auxDF = pd.concat([ResultsDF,new.to_frame().T],axis=0,ignore_index=True)
+    
+    return auxDF
+     
+
+                                                     

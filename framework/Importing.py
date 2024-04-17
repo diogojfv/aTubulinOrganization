@@ -18,7 +18,10 @@ import matplotlib.colors as colors
 
 # SOFIA DATASET
 def label_tubulin(name):
-    number = int(name.split('_')[1])
+    try: 
+        number = int(name.split('_')[1])      # CYTO, NUCL
+    except:
+        number = int(name.split('_')[0]) + 1  # RGB
     
     if (number >= 8 and number <= 11) or number == 29 or number == 30:
         label = 'WT'
@@ -58,8 +61,9 @@ def label_tubulin3D(name):
 
 # SPOCC DATASET
 def label_SPOCC(name):
-    hour = name.split("_")[1]
-    return hour
+    number = name[5:-4]
+    label = str(name.split("_")[1])
+    return number, label
 
 # SORAIA DATASET
 def label_soraia(name):
@@ -79,11 +83,17 @@ def label_soraia(name):
     return number,label
 
 # NUNO DATASET
-def label_MCFMDA(name):
-    number = name
-    label1,label2 = str(name.split('_')[0]),str(name.split('_')[1])
+def label_p28(name):
+    number = name[:-9]
+    label = str(name.split('_')[3]) + str('_') + str(name.split('_')[4])
     
-    return number,label1,label2
+    return number,label
+
+def label_EMBC(name):
+    number = int(name.split('_')[1][:-4])
+    label = str(name.split('_')[0])
+    
+    return number,label
 
 
 ### IMPORTING 
@@ -99,9 +109,9 @@ def init_import(folder, options, denominator):
         for img in os.listdir(folder + "\\RGB"):
             path       = folder + "\\RGB\\" + img
             zres, xres, yres = getvoxelsize(path)
+            zres, xres, yres = 1*zres, 10**4*xres, 10**4*yres
             image      = cv2.imread(path,cv2.IMREAD_COLOR)  # Size: (1040, 1388, 3)
-            img_id     = int(img.split('_')[0])+1 # add 1 to keep the same id as deconvoluted imgs
-            new        = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [denominator(img)], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image]}, index = [img])
+            new        = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [denominator(img)[1]], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image]}, index = [denominator(img)[0]])
             OriginalDF = pd.concat([OriginalDF, new], axis=0,ignore_index=False)
         res["RGB"] = OriginalDF
         print(">>> [RGB] added.")
@@ -112,7 +122,8 @@ def init_import(folder, options, denominator):
         for img in os.listdir(folder + "\\CYTO"):
             path     = folder + "\\CYTO\\" + img
             zres, xres, yres = getvoxelsize(path)
-            image    = cv2.imread(path,-1)  # Size: (1040,1388)
+            zres, xres, yres = 1*zres, 10**4*xres, 10**4*yres
+            image    = cv2.imread(path,-1)  
             new  = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img)[1]], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image]}, index = [denominator(img)[0]])
             DeconvDF = pd.concat([DeconvDF, new], axis=0,ignore_index=False)
         res["CYTO"] = DeconvDF
@@ -124,6 +135,7 @@ def init_import(folder, options, denominator):
         for img in os.listdir(folder + "\\NUCL"):
             path           = folder + "\\NUCL\\" + img
             zres, xres, yres = getvoxelsize(path)
+            zres, xres, yres = 1*zres, 10**4*xres, 10**4*yres
             image          = cv2.imread(path,-1)
             new  = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [denominator(img)[1]], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image]}, index = [denominator(img)[0]])
             NucleiDeconvDF = pd.concat([NucleiDeconvDF, new], axis=0,ignore_index=False)

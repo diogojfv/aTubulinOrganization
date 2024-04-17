@@ -56,12 +56,12 @@ from skan.csr import skeleton_to_csgraph, sholl_analysis,make_degree_image
 import scipy as sp
 import scipy.sparse
 from matplotlib.patches import Circle
-from framework.ImageFeatures import ImageFeatures,getvoxelsize
+
 #from framework.Functions import  cv2toski,pylsdtoski,polar_to_cartesian, truncate_colormap, plot_hist, plot_pie, remove_not1D, quantitative_analysis,hist_bin,hist_lim,create_separate_DFs,branch,graphAnalysis
-from framework.Importing import *
-from framework.PreProcessingCYTO import *
-from framework.PreProcessingNUCL import *
-from framework.Processing import process3Dnuclei,analyze_cell
+from framework.importing import *
+from framework.preprocessingCYTO import *
+from framework.preprocessingNUCL import *
+from framework.processing import *
 import statannot
 
 #from fractal_dimension import fractal_dimension

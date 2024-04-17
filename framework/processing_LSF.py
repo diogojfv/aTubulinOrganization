@@ -39,12 +39,12 @@ from skan.csr import skeleton_to_csgraph, sholl_analysis,make_degree_image
 import scipy as sp
 import scipy.sparse
 from matplotlib.patches import Circle
-from framework.ImageFeatures import ImageFeatures,getvoxelsize
+from framework.processing_DCF import *
 from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,branch,graphAnalysis
-from framework.Importing import *
+from framework.importing import *
 #from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
 #from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
-from framework.Processing import centroid_find
+from framework.processing import centroid_find
 #from framework.visualization import truncate_colormap, plot_hist, plot_pie
 #from fractal_dimension import fractal_dimension
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
@@ -103,19 +103,18 @@ def lines_cytonuc_alpha(ResultsRow,CentroidsDF):
 
 # ResultsDF["LSF2D:Alphas (LinReg)"] = [lines_cytonuc_alpha(row) for index,row in ResultsDF.iterrows()]
 
-def lines_angdiff(ResultsRow):
-    centroid = centroid_find(ResultsRow)
-    
+def lines_angdiff(ResultsRow):    
     median_points = [((line[0][0] + line[1][0])/2,(line[0][1] + line[1][1])/2) for line in ResultsRow['Lines LinReg']]
     d             = distance_matrix(median_points,median_points); np.fill_diagonal(d,np.max(d));
     d_0           = distance_matrix(median_points,median_points); np.fill_diagonal(d_0,0);
     
     ind = 0
+    close_angle = []
     for line in ResultsRow['Lines LinReg']:
         p0, p1 = line
         
         med_point      = ((p0[0] + p1[0])/2,(p0[1] + p1[1])/2)
-        center_med_vec = np.array(med_point) - np.array([centroid[0],centroid[1]])
+        #center_med_vec = np.array(med_point) - np.array([centroid[0],centroid[1]])
         line_vec       = np.array(p1) - np.array(p0)
         
         ### LOCAL FEATURES
@@ -124,18 +123,36 @@ def lines_angdiff(ResultsRow):
         dists_to_medpoint = copy_d
         closest_angles = []
         
+        # THETA
+        if p0[0] != p1[0]:
+            #theta = np.arctan(abs(p1[1]-p0[1])/abs(p1[0]-p0[0]))*180/np.pi
+            theta = np.arctan(line_vec[1]/line_vec[0])*180/np.pi
+        else:
+            theta = 90
+        if not 0 < theta < 180:  theta = 180 + theta;
+        
         for _ in range(5):
             # calculate angle of the _'th closest line - MANDATORY
             min_val          = np.min(dists_to_medpoint)
             close_line_ind   = np.where(dists_to_medpoint == min_val)[0][0]
-            p0_c, p1_c       = lines[close_line_ind] 
+            p0_c, p1_c       = ResultsRow['Lines LinReg'][close_line_ind] 
             med_point_c      = ((p0_c[0] + p1_c[0])/2,(p0_c[1] + p1_c[1])/2)
-            center_med_vec_c = np.array(med_point_c) - np.array([centroid[1],centroid[0]])
+            #center_med_vec_c = np.array(med_point_c) - np.array([centroid[1],centroid[0]])
             line_vec_c       = np.array(p1_c) - np.array(p0_c)
+            
+            if p0_c[0] != p1_c[0]: 
+                theta_c = np.arctan(line_vec_c[1]/line_vec_c[0])*180/np.pi
+            else: 
+                theta_c = 90
+            if not 0 < theta_c < 180:  theta_c = 180 + theta_c;
 
             closest_angles = closest_angles + [abs(theta - theta_c)]
+            
+        close_angle += [round(np.mean(closest_angles),3)]
         
-    return # FAZER
+    return close_angle
+
+#ResultsDF["LSF2D:Angle Difference (LinReg)"] = [lines_angdiff(row) for index,row in ResultsDF.iterrows()]
 
 def lines_CVar(ResultsRow):
     from scipy.stats import circvar
@@ -199,3 +216,30 @@ def lines_RS_cent_dist(ResultsRow,CentroidsDF):
 
 # OTHERS 
 # ResultsDF['LSF1D:N over A (LinReg)'] = ResultsDF['LSF1D:Number of Lines (LinReg)'] / (ResultsDF['DCF:Area (scaled)'])
+
+
+                                                     
+def line_segment_features(ResultsRow,listfeats):
+    """
+    - ResultsRow   = ResultsDF row
+    - features     = list of features
+    """
+    
+    # Initialize LSF list
+    res = []
+    
+    if 'LSF1D:Number of Lines' in listfeats:
+        res += [('LSF1D:Number of Lines',lines_N(ResultsRow))]
+        
+    #cont.
+    return res
+
+
+#ResultsDF["LSF2D:Theta (LinReg)"] = [lines_theta(row) for index,row in ResultsDF.iterrows()]
+#ResultsDF['LSF1D:OOP (LinReg)'] = [lines_OOP(row) for _,row in ResultsDF.iterrows()]
+#ResultsDF['LSF1D:Number of Lines (LinReg)'] = [lines_N(row) for _,row in ResultsDF.iterrows()]
+#ResultsDF['LSF1D:N over A (LinReg)'] = ResultsDF['LSF1D:Number of Lines (LinReg)'] / (ResultsDF['DCF:Area (scaled)'])
+#ResultsDF["LSF2D:Distances to Centroid (LinReg) (scaled)"] = [lines_cytonuc_dist(row,CentroidsDF) for index,row in ResultsDF.iterrows()]
+#ResultsDF["LSF2D:Alphas (LinReg)"] = [lines_cytonuc_alpha(row,CentroidsDF) for index,row in ResultsDF.iterrows()]
+#ResultsDF['LSF1D:Circular Variance (LinReg)'] =  [lines_CVar(row) for index,row in ResultsDF.iterrows()]
+#ResultsDF["LSF1D:RS NucCent Distance (LinReg) (scaled)"] = [lines_RS_cent_dist(row) for index,row in ResultsDF.iterrows()]

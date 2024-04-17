@@ -56,7 +56,7 @@ from skan.csr import skeleton_to_csgraph, sholl_analysis,make_degree_image
 import scipy as sp
 import scipy.sparse
 from matplotlib.patches import Circle
-from framework.ImageFeatures import ImageFeatures,getvoxelsize
+from framework.processing_DCF import *
 from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,branch,graphAnalysis
 from framework.importing import *
 #from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
@@ -113,7 +113,287 @@ def excludeborder(vol):
 #                 return res
 
 
+def nuclei_segmentation(rowNUCL,algorithm,algorithm_specs,plot,save):
+    from skimage.filters import threshold_otsu
+    from tifffile import imread,imwrite
+    
+    idx = rowNUCL.index
+    path            = rowNUCL['Path']
+    image           = rowNUCL['Image']
+    name            = rowNUCL['Name']
+    
+    if len(image.shape) == 2:
+        dim = 2
+    if len(image.shape) == 3:
+        dim = 3
 
+    global final
+    
+    def plot_centroids_from_binmask(ax,nucmask):
+        for mask in np.unique(nucmask)[1:]:
+            # Isolate nucleus
+            nucleus = nucmask == mask
+            nucleus = nucleus*nucmask
+            bin_nuc = np.where(nucleus>0.5, 1, 0) 
+
+            # Get and plot centroid
+            props = regionprops(bin_nuc, bin_nuc)
+            ax.plot(props[0].centroid[1],props[0].centroid[0],'o',color='red',markersize=7,zorder=5)
+    
+    # ALGORITHM = STARDIST
+    if algorithm == "stardist":
+        from csbdeep.utils import Path, normalize
+        from csbdeep.io import save_tiff_imagej_compatible
+        from skimage.exposure import equalize_adapthist
+        from scipy import ndimage
+            
+        # IMAGE SIZE = 2D
+        if dim == 2:   
+            # Define model
+            from stardist.models import StarDist2D
+            model = StarDist2D.from_pretrained('2D_versatile_fluo')
+            
+            # Normalize image
+            img = normalize(image.astype(np.uint16), 1,99.8, axis=(0,1))
+
+            # Apply model
+            labels, details = model.predict_instances(img,verbose=True)
+            
+            # Remove outliers
+            labels_ = copy.deepcopy(labels)
+            N_excluded = 0
+            for vol_id in np.unique(labels_)[1:]:
+                u = labels_ == vol_id
+                u = u*vol_id
+                if len(np.where(u == vol_id)[0]) < algorithm_specs[1] or excludeborder(u) == True:
+                    labels_ = labels_ - u
+                    N_excluded += 1
+            print("Number of excluded nuclei: " + str(N_excluded))
+            
+            final = labels_
+            
+        # IMAGE SIZE = 3D 
+        if dim == 3:
+            # Define model
+            from stardist.models import StarDist3D
+            model = StarDist3D.from_pretrained('3D_demo')
+
+            # Normalize image
+            img = normalize(image.astype(np.uint16), 1,99.8, axis=(0,1,2))
+
+            # Apply model
+            labels, details = model.predict_instances(img,prob_thresh=0.75,nms_thresh=0.3,verbose=True)
+
+            # Remove outliers
+            #labels_ = copy.deepcopy(labels)
+            labels_ = remove_small_objects(labels, min_size=algorithm_specs[1])
+            
+#             N_excluded = 0
+#             for vol_id in np.unique(labels_)[1:]:
+#                 u = labels_ == vol_id
+#                 u = u*vol_id
+#                 if len(np.where(u == vol_id)[0]) < algorithm_specs[1] or excludeborder(u) == True:
+#                     labels_ = labels_ - u
+#                     N_excluded += 1
+#             print("Number of excluded nuclei: " + str(N_excluded))
+
+            final = labels_
+                    
+                    
+                    
+    # ALGORITHM = CONTOUR
+    if algorithm == "contour": 
+        from skimage.measure import label
+        from skimage.morphology import remove_small_objects
+        from scipy import ndimage
+        from skimage.feature import peak_local_max
+        from skimage.segmentation import watershed
+        
+        if dim == 2:
+            # Image > Otsu
+            thresh_ori = threshold_otsu(image)
+            binary_ori = image > thresh_ori*algorithm_specs[0]
+            image_     = binary_ori * image
+            
+
+            # Get nuclei contours
+            contours, hierarchy = cv2.findContours(image_.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            
+            # Draw contours and 
+            copi = copy.deepcopy(image)
+            contour_int = np.zeros_like(image)
+            cv2.fillPoly(contour_int, pts = contours, color=(255,255,255))
+            copi = contour_int
+            copi = ndimage.binary_fill_holes(copi)
+            
+            labels__ = label(copi)
+            labels__ = remove_small_objects(labels__, min_size=algorithm_specs[1])
+            
+            # Watershed segmentation
+            distance = ndimage.distance_transform_edt((labels__!=0)*1)
+            local_maxi = peak_local_max(distance, footprint=np.array(np.ones((7, 7)),dtype=np.float64),min_distance=25,  threshold_rel=0.3, labels=labels__.astype(np.int32))
+            mask = np.zeros(distance.shape, dtype=bool)
+            mask[tuple(local_maxi.T)] = True
+            markers, _ = ndimage.label(mask)
+            labels = watershed(-distance, markers, mask=binary_ori)
+            
+            #labels = label(copi)
+            
+            # Remove outliers
+            labels_ = remove_small_objects(labels, min_size=algorithm_specs[1])
+
+            
+#             labels_ = copy.deepcopy(labels)
+#             N_excluded = 0
+#             for vol_id in np.unique(labels_)[1:]:
+#                 u = labels == vol_id
+#                 u = u*vol_id
+#                 if len(np.where(u == vol_id)[0]) < algorithm_specs[1] or excludeborder(u) == True:
+#                     N_excluded += 1
+#                     labels_ = labels_ - u
+#             print("Number of excluded nuclei: " + str(N_excluded))
+            
+            final = np.array(labels_,dtype=np.uint16)
+            
+#             # Analyse each contour
+#             add_contours = []
+#             dil_contours = []
+#             centroids    = []
+#             for cnt in contours:
+#                 cr = cnt.reshape((cnt.shape[0],cnt.shape[2]))
+
+#                 if excludeborder(cr) == True:
+#                     continue
+
+#                 # Size filter
+#                 if cv2.contourArea(cnt) >= algorithm_specs[1]:
+#                     # Create image with contour
+#                     fill_temp = np.zeros_like(image)
+#                     cv2.fillPoly(fill_temp, pts = [cnt], color=(255,255,255))
+
+#                     # Dilate previous image and get contour
+#                     dil_fill = binary_dilation(fill_temp, disk(thr[2], dtype=bool))
+#                     contour_dil, hierarchy_dil = cv2.findContours((dil_fill*1).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+#                     # Get centroid of contour
+#                     props    = regionprops(dil_fill*1,dil_fill*1)
+#                     centroid = props[0].centroid 
+#                     centroids.append(centroid)
+
+#                     # Add contours to list
+#                     add_contours.append(cnt)
+#                     dil_contours.append(contour_dil[0])
+
+#             # Get nuclei masks
+#             fillcontours = np.zeros_like(image)
+#             cv2.fillPoly(fillcontours, pts = add_contours, color=(255,255,255))
+#             dilcontours = np.zeros_like(image)
+#             cv2.fillPoly(dilcontours, pts = dil_contours, color=(255,255,255))
+
+#             # Result 
+#             res = (dilcontours/255).astype(np.uint8) * image
+
+#             if plot:
+#                 plt.figure(figsize=(12,12))
+#                 plt.imshow(image,cmap='gray')
+#                 plt.show()
+#                 plt.figure(figsize=(12,12))
+#                 plt.imshow(fillcontours,cmap='gray')
+#                 plt.show()
+#                 plt.figure(figsize=(12,12))
+#                 plt.imshow(dilcontours,cmap='gray')
+#                 plt.show()
+#                 plt.figure(figsize=(12,12))
+#                 plt.imshow(res,cmap='gray')
+#                 for cx,cy in centroids:
+#                     plt.plot(cy,cx,'o',color='red',markersize=7)
+
+#                 plt.show()
+
+            #return dil_contours,centroids,res
+        
+        if dim == 3:
+            from skimage.segmentation import clear_border
+            from skimage.segmentation import watershed
+            from skimage.feature import peak_local_max
+            from scipy import ndimage as ndi
+            
+            temp = image
+            thresh = threshold_otsu(temp)
+            binary = temp > thresh*algorithm_specs[0]
+            imagem = binary * temp
+
+            copi = copy.deepcopy(imagem)
+
+            # For each slice
+            for sl in range(len(imagem)):
+                # Contour Detection of slice sl
+                contours, hierarchy = cv2.findContours(imagem[sl].astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)  
+
+                # Draw contours and 
+                contour_int = np.zeros_like(imagem[sl])
+                cv2.fillPoly(contour_int, pts = contours, color=(255,255,255))
+                copi[sl] = contour_int
+                copi[sl] = clear_border(copi[sl])
+                
+            copi_ = copy.deepcopy(copi)
+#             for slc in range(len(copi2)):
+#                 copi_[slc] = clear_border(copi2[slc])
+            
+            res = label(copi_)
+            
+            copi2 = remove_small_objects(res, min_size=algorithm_specs[1])
+            
+            labels_ = copy.deepcopy(copi2)
+            
+#             N_excluded = 0
+#             for vol_id in np.unique(labels_)[1:]:
+#                 u = res == vol_id
+#                 u = u*vol_id
+#                 if len(np.where(u == vol_id)[0]) < algorithm_specs[1]:
+#                     N_excluded += 1
+#                     labels_ = labels_ - u
+#             print("Number of excluded nuclei: " + str(N_excluded))
+            
+#             dist_transform = cv2.distanceTransform(labels_,cv2.DIST_L2,5)
+#             ret2, sure_fg = cv2.threshold(dist_transform,0.5*dist_transform.max(),255,0)
+            
+#             distance = ndi.distance_transform_edt(labels_)
+#             distance = gaussian_filter(distance, sigma=3)
+#             coords = peak_local_max(distance, footprint=np.ones((1000, 1000, 1000)), labels=labels_)
+#             mask = np.zeros(distance.shape, dtype=bool)
+#             mask[tuple(coords.T)] = True
+#             markers, _ = ndi.label(mask)
+#             labels_ = watershed(-distance, markers, mask=labels_)
+    
+            final = np.array(labels_,dtype=np.uint16)
+    
+    
+    if plot and dim == 2:
+        # ORIGINAL
+        fig,ax = plt.subplots(figsize=(15,15))
+        ax.imshow(image,cmap='gray')
+        ax.axis('off')
+        #ax.axis('equal')
+        plt.show()
+        
+        # MASKS
+        fig,ax = plt.subplots(figsize=(15,15))
+        ax.imshow(final,cmap='viridis')
+        ax.axis('off')
+        #ax.axis('equal')
+        plot_centroids_from_binmask(ax,final)
+        plt.show()
+    
+    if plot and dim == 3:
+        pass
+    
+    # Write in desired path
+    if save:
+        #print(np.unique(final))
+        imwrite(os.path.join(save, name), final,photometric='minisblack')
+    
+    
 
 
 
