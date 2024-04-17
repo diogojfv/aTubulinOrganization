@@ -13,3 +13,5 @@ SPOCC.ipynb
 EMBC.ipynb
 Synthetic Cytoskeletons.ipynb
 Renamer.ipynb
+.ipynb_checkpoints/*
+.vscode/*
