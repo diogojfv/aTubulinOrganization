@@ -13,6 +13,8 @@ import scipy.misc
 import matplotlib.pyplot as plt
 import matplotlib.cm as pltc
 import matplotlib.colors as colors
+from IPython.display import display
+import ipywidgets as widgets
 
 ### LABEL FUNCTIONS
 
@@ -232,5 +234,7 @@ def widget_import_dataset():
 
     dropdown.observe(imp_datasets, names='value')
     display(dropdown)
+
+
 
 

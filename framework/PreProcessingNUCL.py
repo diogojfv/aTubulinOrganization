@@ -394,7 +394,161 @@ def nuclei_segmentation(rowNUCL,algorithm,algorithm_specs,plot,save):
         imwrite(os.path.join(save, name), final,photometric='minisblack')
     
     
+def nuclei_preprocessing(rowNUCL,dir_masks,plot,save):
+    from tifffile import imread
+    from skimage.morphology import binary_dilation,ball,disk
+    global NUCL_PRE,contour
+    
+    idx   = rowNUCL.name
+    name  = rowNUCL['Name']
+    image = rowNUCL['Image']
+    label = rowNUCL['Label']
+    
+    if len(image.shape) == 2:
+        dim = 2
+    elif len(image.shape) == 3 and name.split('_')[-1] == 'ch00.tif':
+        dim = 3
+    else:
+        print(">>>>>> PREPROCESSING: Image " + str(name) + " error.")
+        return NUCL_PRE
+    
+    print(">>>>>> PREPROCESSING: Image " + str(name))
 
+    path = dir_masks + str("\\") + name
+    nuc_mask = imread(path)
+    print(path)
+#     if dim == 2:
+#         try:
+#             idx = name.split('_')[1] # DATASET SORAIA
+#             #idx = path.split('/')[1].split('_')[1]
+#         except:
+#             idx = path.split('/')[-1].split('_')[2]
+#     if dim == 3:
+#         #idx = path.split('/')[1].split('_')[0]
+#         idx = path.split('\\')[-1].split('_')[0]
+        
+     
+    # Open figure
+    if plot:
+        if dim == 2:
+            fig,ax = plt.subplots(figsize=(8,8))
+            plt.axis('off')
+            plt.imshow(nuc_mask,cmap='gray')
+          
+                                      
+    # Obtain isolated nucleus
+    nuc = 0
+    
+    for nucleus in np.unique(nuc_mask)[1:]:
+        # Obtain isolated nucleus
+        aux  = nuc_mask == nucleus
+        mask_w_id = aux*nuc_mask
+        bin_nuclei = np.where(mask_w_id>0.5, 1, 0) 
+
+
+
+        # Get contour
+        if dim == 2:
+            contour, hierarchy = cv2.findContours((bin_nuclei*255).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            #dil = binary_dilation(bin_nuclei,footprint=disk(3))
+        if dim == 3:
+            contour = 0
+            dil = binary_dilation(bin_nuclei,footprint=ball(3))
+        
+
+        imgg = bin_nuclei * (image / np.max(image))
+        imgg = imgg / np.max(imgg)
+
+
+        if dim == 2:
+            xp,yp  = np.where(bin_nuclei>0)
+#             imgg   = imgg[min(xp):max(xp),min(yp):max(yp)]
+            pixels = [xp,yp]
+
+        if dim == 3:
+            xp,yp,zp = np.where(dil>0)
+            #print(min(xp),max(xp),min(yp),max(yp),min(zp),max(zp))
+            #imgg     = imgg[min(xp):max(xp),min(yp):max(yp),min(zp):max(zp)]
+            pixels   = [xp,yp,zp]
+
+        imgg = (imgg *255).astype(np.uint8)
+        #print(imgg.shape,np.unique(imgg))
+        props = regionprops((imgg!=0)*1, imgg)
+
+
+        if dim == 2:
+            #cent = round(props[0].centroid[0] + min(xp),3), round(props[0].centroid[1] + min(yp),3)
+            cent = round(props[0].centroid[0],3), round(props[0].centroid[1],3)
+        if dim == 3:
+            #cent = round(props[0].centroid[2] + min(zp),3), round(props[0].centroid[0] + min(xp),3), round(props[0].centroid[1] + min(yp),3)
+            cent = props[0].centroid[0], props[0].centroid[1], props[0].centroid[2]
+
+
+        # Add to dataframe
+        global new
+        if 'NUCL_PRE' not in globals():
+            NUCL_PRE = pd.DataFrame(columns = ['Img Index'] + ['Label'] + ['Nucleus Mask'] + ['Centroid'] + ['Contour']) 
+        new   = pd.Series([idx] + [label] + [pixels] + [cent] + [contour[0]],index=NUCL_PRE.columns)
+        NUCL_PRE = pd.concat([NUCL_PRE,new.to_frame().T],axis=0,ignore_index=True)
+        
+        
+        # Plot
+        if plot:
+            if dim == 2:
+                #plt.plot(cent[1] + min(yp),cent[0] + min(xp),'o',color='red',markersize=7)
+                plt.plot(cent[1],cent[0],'o',color='red',markersize=7)
+                
+                cr = contour[0].reshape((contour[0].shape[0],contour[0].shape[2]))
+                ax.plot(cr[:,0],cr[:,1],'--',color='#6495ED',zorder=11,linewidth=3)
+#                 if dim == 3:
+#                     test = label2rgb(nuc_mask, image=image, bg_label=0)
+#                     sl = 1
+#                     for im in test:
+#                         plt.figure(figsize=(15,15))
+#                         plt.axis('off')
+#                         plt.imshow(im)
+#                         plt.plot(cent[1],cent[0],'o',color='red',markersize=7)
+#                         #plt.savefig("..//tempp//id70_slice" + str(sl) + ".png",format='png',transparent=True,bbox_inches='tight',dpi=200)
+#                         plt.show()  
+#                         sl += 1
+
+
+
+        # Print progress
+        nuc += 1
+        print('>>> Preprocessing: ' + str(100*nuc / len(np.unique(nuc_mask))))
+            
+    if plot and dim == 3:
+        test = label2rgb(nuc_mask, image=image, bg_label=0)
+        dat = NUCL_PRE[NUCL_PRE['Img Index'] == int(idx)]
+        sl = 1
+        for im in test:
+            plt.figure(figsize=(15,15))
+            plt.axis('off')
+            plt.imshow(im)
+            for centr in dat['Centroid']:
+                plt.plot(centr[2],centr[1],'o',color='red',markersize=7,zorder=10)
+            #plt.savefig("..//tempp//id70_slice" + str(sl) + ".png",format='png',transparent=True,bbox_inches='tight',dpi=200)
+            plt.show()  
+            sl += 1 
+    
+    # Save figure
+    if plot:
+        if save != False:
+            plt.savefig(os.getcwd() + str("\\Datasets\\") + str(name) + ".png",format='png',transparent=True,bbox_inches='tight',dpi=500)
+        plt.show()
+        
+#         sl = 1
+#         for im in test:
+#             plt.figure(figsize=(15,15))
+#             plt.axis('off')
+#             plt.imshow(im)
+#             #plt.savefig("..//tempp//id70_slice" + str(sl) + ".png",format='png',transparent=True,bbox_inches='tight',dpi=200)
+#             plt.show()  
+#             sl += 1
+        
+        
+    return NUCL_PRE
 
 
 def df_nuclei_preprocessing(NUCL_df,dir_nucldec,dir_masks,algorithm,algorithm_specs,plot,save):

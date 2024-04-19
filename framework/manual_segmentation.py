@@ -15,55 +15,102 @@ def roi_selector(data,img_id,ROIsDF):
        
     ROIsDF_ = copy.deepcopy(ROIsDF)
     
-    # Get image
-    if '3D' in data.keys():
-        flag = '3D'
-        mult = np.stack([1.8*data['3D']['Image'][12]/np.max(data['3D']['Image'][12]),1.8*data['3D']['Image'][11]/np.max(data['3D']['Image'][11]),1*data['3D']['Image'][10]/np.max(data['3D']['Image'][10])],axis=2)
-    
-    if 'CYTO_DECONV' in data.keys():
-        flag = 'RGB'
-        img        = data['RGB']['Image'][img_id]
-        tmp        = copy.deepcopy(img)
-        tmp[:,:,0] = 0
-        grey       = cv2.cvtColor(tmp,cv2.COLOR_RGB2GRAY)
-
-        #mult = np.stack([1.3*(grey / np.max(grey)),1.3*sk*(grey / np.max(grey)), np.zeros_like(sk)],axis=2)
-        #mult = np.stack([0.9*(grey / np.max(grey)),sk*(grey / np.max(grey)), 0.5 * (OriginalDF['Image'][img_id][:,:,0] / np.max(OriginalDF['Image'][img_id][:,:,0]))],axis=2)
-        #mult = np.stack([1.5*(grey / np.max(grey)),sk, 0.2 * (data['RGB']['Image'][img_id][:,:,0] / np.max(data['RGB']['Image'][img_id][:,:,0]))],axis=2)
-        mult = img
-
-        
-        
-    
-    while 1:
-        try:
+    # ROI loop
+    try:
+        while 1:
+            # Handle figure
             plt.close('all')
-
-            # Select ROI QT
-            #%matplotlib qt
             fig,ax = plt.subplots(figsize=(30,30))
-            plt.imshow(mult)
+            plt.imshow(data['CYTO'].loc[img_id]['Image'])
             plt.axis('off')
-            # Plot Contours
-            #plot_nuclei_contours(CentroidsDF=Centroids,imgIndex=img_id,ax=ax)
-            # Define ROI
-
-            ROI = RoiPoly(color='r')
-            #ROI.display_roi()
-            #global mask,roi_coordinates
-            #roi_coordinates = ROI.get_roi_coordinates()
-            mask = ROI.get_mask(img)
-
-            # Save ROI
-            new = pd.DataFrame(data = {'Name': [data[flag]['Name'][img_id]],'Index': [img_id], 'Label': [data[flag]['Label'][img_id]], 'ROImask': [mask]})
+            
+            # Handle variables
+            ROI     = RoiPoly(fig=fig, ax=ax, color='r')
+            mask    = ROI.get_mask(data['CYTO'].loc[img_id]['Image'])
+            new     = pd.DataFrame(data = {'Name': [data['CYTO']['Name'][img_id]],'Index': [img_id], 'Label': [data['CYTO']['Label'][img_id]], 'ROImask': [mask]})
             ROIsDF_ = pd.concat([ROIsDF_, new], axis=0,ignore_index=True)
 
+    except Exception as e:
+        print('Window closed')
+        print(e)
+        return ROIsDF_
+    
+def plot_selected_ROIs(ROIs2,img_id):
+    df = ROIs2[ROIs2['Index']==img_id]
 
-            plt.show()
-        except Exception as e:
-            print('Window closed')
-            print(e)
-            return ROIsDF_
+    i = 0
+    for index,row in df.iterrows():
+        if i == 0:
+            auxx = row['ROImask']
+            i = 1
+        else:
+            auxx = auxx + row['ROImask']
+
+    fig,ax = plt.subplots(figsize=(10,10))
+    plt.imshow(auxx,cmap='rainbow')
+    plt.axis('off')
+
+    plt.show()
+
+# def roi_selector(data,img_id,ROIsDF):
+#     global ROI
+#     import copy
+#     print('🔎')
+    
+#     if type(ROIsDF) != pd.core.frame.DataFrame:
+#         ROIsDF    = pd.DataFrame(columns = ['Name','Index','Label','ROImask'])
+       
+#     ROIsDF_ = copy.deepcopy(ROIsDF)
+    
+#     # Get image
+#     if '3D' in data.keys():
+#         flag = '3D'
+#         mult = np.stack([1.8*data['3D']['Image'][12]/np.max(data['3D']['Image'][12]),1.8*data['3D']['Image'][11]/np.max(data['3D']['Image'][11]),1*data['3D']['Image'][10]/np.max(data['3D']['Image'][10])],axis=2)
+    
+#     if 'CYTO_DECONV' in data.keys():
+#         flag = 'RGB'
+#         img        = data['RGB']['Image'][img_id]
+#         tmp        = copy.deepcopy(img)
+#         tmp[:,:,0] = 0
+#         grey       = cv2.cvtColor(tmp,cv2.COLOR_RGB2GRAY)
+
+#         #mult = np.stack([1.3*(grey / np.max(grey)),1.3*sk*(grey / np.max(grey)), np.zeros_like(sk)],axis=2)
+#         #mult = np.stack([0.9*(grey / np.max(grey)),sk*(grey / np.max(grey)), 0.5 * (OriginalDF['Image'][img_id][:,:,0] / np.max(OriginalDF['Image'][img_id][:,:,0]))],axis=2)
+#         #mult = np.stack([1.5*(grey / np.max(grey)),sk, 0.2 * (data['RGB']['Image'][img_id][:,:,0] / np.max(data['RGB']['Image'][img_id][:,:,0]))],axis=2)
+#         mult = img
+
+        
+        
+    
+#     while 1:
+#         try:
+#             plt.close('all')
+
+#             # Select ROI QT
+#             #%matplotlib qt
+#             fig,ax = plt.subplots(figsize=(30,30))
+#             plt.imshow(mult)
+#             plt.axis('off')
+#             # Plot Contours
+#             #plot_nuclei_contours(CentroidsDF=Centroids,imgIndex=img_id,ax=ax)
+#             # Define ROI
+
+#             ROI = RoiPoly(color='r')
+#             #ROI.display_roi()
+#             #global mask,roi_coordinates
+#             #roi_coordinates = ROI.get_roi_coordinates()
+#             mask = ROI.get_mask(img)
+
+#             # Save ROI
+#             new = pd.DataFrame(data = {'Name': [data[flag]['Name'][img_id]],'Index': [img_id], 'Label': [data[flag]['Label'][img_id]], 'ROImask': [mask]})
+#             ROIsDF_ = pd.concat([ROIsDF_, new], axis=0,ignore_index=True)
+
+
+#             plt.show()
+#         except Exception as e:
+#             print('Window closed')
+#             print(e)
+#             return ROIsDF_
             
         
         
