@@ -42,12 +42,18 @@ from matplotlib.patches import Circle
 from framework.processing_DCF import *
 from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,branch,graphAnalysis
 from framework.importing import *
+
 #from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
 #from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
 
 #from framework.visualization import truncate_colormap, plot_hist, plot_pie
 #from fractal_dimension import fractal_dimension
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
+
+def retrieve_mask(coordinates, dims):
+    mask = np.zeros(dims)
+    mask[coordinates] = 1
+    return mask
 
 def processing_cell(rowROI,data,LSFparams):
     """
@@ -66,7 +72,7 @@ def processing_cell(rowROI,data,LSFparams):
     img_id  = rowROI['Index']
     name    = rowROI['Name']
     label   = rowROI['Label']
-    mask    = rowROI['ROImask'] # 1040 x 1388
+    mask    = retrieve_mask(rowROI['ROImask'],rowROI['Image Size']) # 1040 x 1388
     
     # Isolate deconvoluted cytoskeleton and nuclei within mask and normalize intensities
     cdeconv = data['CYTO']['Image'][img_id]
@@ -133,39 +139,43 @@ def processing_cell(rowROI,data,LSFparams):
     ### CYTOSKELETON NETWORK FEATURES (CNFs)
     global int_ske, graph, graph_res, shollhist, cncd, pxlcount
     #graph,CNFs,shollhist = cyto_graph_features(mesqueleto_norm,features,[x_,y_],[aux_n_,centroid,cr],mask,False) #int_ske         = (mesqueleto * aux_f) / np.max(aux_f) 
-    graph       = Skeleton(skeleton_image=(mask*data['CYTO_PRE']['Skeleton'][img_id]).astype(float)) 
+    #graph       = Skeleton(skeleton_image=().astype(float)) 
     
     
     
     # Add to DataFrame
     global ResultsDF,new
     if 'ResultsDF' not in globals():
-        ResultsDF = pd.DataFrame(columns = [['Name'] + 
-                                           ['Img Index'] + 
-                                           ['Label'] + 
-                                           ['Mask'] + 
-                                           ['Patch:Skeleton'] + 
-                                           ['Patch:Deconvoluted Cyto'] + 
-                                           ['Patch:Deconvoluted Nucl'] + 
-                                           ['Patch:Skeleton Max'] + 
-                                           ['Offset'] + 
-                                           ['Nucleus Contour'] + 
-                                           ['Nucleus Centroid'] + 
-                                           ['Graph'] + 
-                                           ['Lines']])
+        ResultsDF = pd.DataFrame(columns = [['Path'] + 
+                                            ['Name'] + 
+                                            ['Img Index'] + 
+                                            ['Label'] +
+                                            ['Image Size'] +
+                                            ['Resolution'] + 
+                                            ['Mask'] + 
+                                            ['Skeleton'] + 
+                                            ['Patch:Deconvoluted Cyto'] + 
+                                            ['Patch:Deconvoluted Nucl'] + 
+                                            ['Patch:Skeleton Max'] + 
+                                            ['Offset'] + 
+                                            ['Nucleus Contour'] + 
+                                            ['Nucleus Centroid'] +  
+                                            ['Lines']])
 
-    new       = pd.Series([name] + 
+    new       = pd.Series([data['CYTO'].loc[img_id]['Path']] + 
+                          [name] + 
                           [img_id] + 
                           [label] + 
-                          [mask] + 
-                          [patch_sk] + 
+                          [rowROI['Image Size']] +
+                          [data['CYTO'].loc[img_id]['Resolution']] +
+                          [rowROI['ROImask']] + 
+                          [np.where((mesqueleto*1) != 0)] + 
                           [patch_cy] + 
                           [patch_nc] + 
                           [mesqueleto] + 
                           [[x_,y_]] + 
                           [cr] + 
                           [centroid] + 
-                          [graph] +
                           [lines], index=ResultsDF.columns)
 
 
@@ -1983,61 +1993,6 @@ def process3Dnuclei(dir_masks):
     return nucDF
 
 
-def df_feature_extractor(ResultsDF,listfeats):
-    resDF = pd.DataFrame()
-    
-    count = 0
-    for index,row in ResultsDF.iterrows():
-        auxDF = feature_extractor(ResultsRow,listfeats)
-        
-        resDF = pd.concat([resDF,auxDF],axis=0,ignore_index=True)
-        
-        count += 1
-        print(">>> Progress: " + str(round((count / len(ResultsDF))*100,3)) + "%",count)
-        
-    return resDF
 
-def feature_extractor(ResultsRow,features):
-    ### DCFs
-    # CYTO
-    feats_all                    = processingDCF(img             = ResultsRow['Patch: Deconvoluted Cyto'],
-                                                 mask            = (ResultsRow['Patch: Deconvoluted Cyto'] != 0)*1,
-                                                 skel            = ResultsRow['Patch: Skeleton'],
-                                                 listfeats       = features,
-                                                 resolution      = ResultsRow['Resolution'],
-                                                 original_folder = data['CYTO'].loc[ResultsRow['Img Index']]['Path'])
-    feats_labels_, feats_values_ = feats_all.print_features(print_values = False)
-    feats_labels_, feats_values_ = remove_not1D(feats_labels_,feats_values_)
-    feats_labels_                = ['DCF:' + ftf for ftf in feats_labels_]
-    
-    # NUCL
-    feats_all_n                      = processingDCF(img             = ResultsRow['Patch: Deconvoluted Nucl'],
-                                                     mask            = (ResultsRow['Patch: Deconvoluted Nucl'] != 0)*1,
-                                                     skel            = 'None',
-                                                     listfeats       = features,
-                                                     resolution      = ResultsRow['Resolution'],
-                                                     original_folder = data['NUCL'].loc[ResultsRow['Img Index']]['Path'])
-    feats_labels_n_, feats_values_n_ = feats_all_n.print_features(print_values = False)
-    feats_labels_n_, feats_values_n_ = remove_not1D(feats_labels_n_,feats_values_n_)
-    feats_labels_n_                  = ['DNF:' + ftn for ftn in feats_labels_n_]
-                                                     
-    
-    ### LSFs
-    LSFs = line_segment_features(ResultsRow = ResultsRow,
-                                 listfeats  = features)
-                                                     
-    ### CNFs
-    CNFs = cyto_network_features(ResultsRow = ResultsRow,
-                                 listfeats  = features)
-    
-    # Amplify Results Row:
-    auxDF = pd.DataFrame(columns = ResultsRow.columns + list(feats_labels_) + list(feats_labels_n_) + [xç for xç,yç in LSFs] + [xg for xg,yg in CNFs])
-        
-    new       = pd.Series(list(ResultsRow.values) + feats_values_ + feats_values_n_ +  [yç for xç,yç in LSFs] + [yg for xg,yg in CNFs], index=auxDF.columns)
-                                                     
-    auxDF = pd.concat([ResultsDF,new.to_frame().T],axis=0,ignore_index=True)
-    
-    return auxDF
-     
 
                                                      

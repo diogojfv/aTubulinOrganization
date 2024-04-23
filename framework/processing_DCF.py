@@ -452,54 +452,54 @@ class processingDCF:
         
         # --- MORPHOLOGY 
         if any('DCF:Number of Pixels' in string for string in self.listfeats):
-            features['DCF:Number of Pixels'] = props[0].num_pixels
+            features['Number of Pixels'] = props[0].num_pixels
         
         # AREA AND VOLUME
         if any(('DCF:Area' in string or 'DCF:Area convex' in string or 'DCF:Volume' in string or 'DCF:Volume convex') for string in self.listfeats):
             if self.dim == 2:
-                features['DCF:Area']                   = props[0].area 
-                features['DCF:Area convex']            = props[0].area_convex 
+                features['Area']                   = props[0].area 
+                features['Area convex']            = props[0].area_convex 
             if self.dim == 3:
-                features['DCF:Volume']                 = props[0].area
-                features['DCF:Volume convex']          = props[0].area_convex 
+                features['Volume']                 = props[0].area
+                features['Volume convex']          = props[0].area_convex 
 
         # BOUNDING BOX AREA
         if any('DCF:BB Area' in string for string in self.listfeats):
-            features['DCF:BB Area']             = props[0].bbox_area
+            features['BB Area']             = props[0].bbox_area
         
         # PERIMETER
         if any('DCF:Perimeter' in string for string in self.listfeats):
             if self.dim == 2:
-                features['DCF:Perimeter']           = props[0].perimeter 
+                features['Perimeter']           = props[0].perimeter 
             if self.dim == 3:
                 test = np.pad(self.bin_img,((1,1),(0,0),(0,0)))
                 #test = self.bin_img.transpose(1, 2, 0)
                 verts, faces, normals, values   = marching_cubes(test,level=0)
                 peri                            = mesh_surface_area(verts,faces)
-                features['DCF:Perimeter']       = peri
+                features['Perimeter']       = peri
 
                 verts, faces, normals, values   = marching_cubes(test, level = 0, spacing=getvoxelsize(self.original_folder))
                 peri                            = mesh_surface_area(verts,faces)
-                features['DCF:Perimeter (micron)']  = peri
+                features['Perimeter (micron)']  = peri
             
             
         # CENTROID
         if any('DCF:Centroid' in string for string in self.listfeats):
-            features['DCF:Centroid']              = [round(x,3) for x in props[0].centroid] 
+            features['Centroid']              = [round(x,3) for x in props[0].centroid] 
         
         # WEIGHTED CENTROID
         if any('DCF:Weighted Centroid' in string for string in self.listfeats):
-            features['DCF:Weighted Centroid']     = [round(x,3) for x in props[0].weighted_centroid]  
+            features['Weighted Centroid']     = [round(x,3) for x in props[0].weighted_centroid]  
         
         # CENTROID DIVERGENCE
         if any('DCF:Centroid Divergence' in string for string in self.listfeats): 
             if self.dim == 2:
-                features['DCF:Centroid Divergence']   = self.spacing[-1] * (np.linalg.norm(np.array(features['DCF:Centroid']) - np.array(features['DCF:Weighted Centroid'])))
+                features['Centroid Divergence']   = self.spacing[-1] * (np.linalg.norm(np.array(features['Centroid']) - np.array(features['Weighted Centroid'])))
         
         # EQUIVALENT DIAMETER
         if any('DCF:Equivalent Diameter' in string for string in self.listfeats):  
             #The diameter of a circle with the same area as the region.
-            features['DCF:Equivalent Diameter']   = props[0].equivalent_diameter 
+            features['Equivalent Diameter']   = props[0].equivalent_diameter 
         
         # EXTENT
         if any('DCF:Extent' in string for string in self.listfeats):  
@@ -523,43 +523,43 @@ class processingDCF:
             
         # EULER NUMBER
         if any('DCF:Euler Number' in string for string in self.listfeats):  
-            features['DCF:Euler Number']          = props[0].euler_number
+            features['Euler Number']          = props[0].euler_number
         
         # ECCENTRICITY
         if any('DCF:Eccentricity' in string for string in self.listfeats):  
             try:
-                features['DCF:Eccentricity']        = props[0].eccentricity #Eccentricity of the ellipse that has the same second-moments as the region. The eccentricity is the ratio of the focal distance (distance between focal points).
+                features['Eccentricity']        = props[0].eccentricity #Eccentricity of the ellipse that has the same second-moments as the region. The eccentricity is the ratio of the focal distance (distance between focal points).
             except:
-                features['DCF:Eccentricity']        = props[0].minor_axis_length / props[0].major_axis_length
+                features['Eccentricity']        = props[0].minor_axis_length / props[0].major_axis_length
         
         # CIRCULARITY and ROUNDNESS
         if any('DCF:Extent' in string for string in self.listfeats):  
             if self.dim == 2:
                 #Circularity that specifies the roundness of objects.
-                features['DCF:Circularity']         = (4*features['DCF:Area']*math.pi)/(features['DCF:Perimeter']**2) 
+                features['Circularity']         = (4*features['Area']*math.pi)/(features['Perimeter']**2) 
 
                 #Like circularity, but does not depend on perimeter/roughness.
-                features['DCF:Roundness']           = (4*features['DCF:Area'])/(np.pi* props[0].major_axis_length**2)
+                features['Roundness']           = (4*features['Area'])/(np.pi* props[0].major_axis_length**2)
             if self.dim == 3:
                 #Circularity that specifies the roundness of objects.
-                features['DCF:Circularity']         = (4*features['DCF:Volume']*math.pi)/(features['DCF:Perimeter']**2) 
+                features['Circularity']         = (4*features['Volume']*math.pi)/(features['Perimeter']**2) 
 
                 #Like circularity, but does not depend on perimeter/roughness.
-                features['DCF:Roundness']           = (4*features['DCF:Volume'])/(np.pi* props[0].major_axis_length**2)
+                features['Roundness']           = (4*features['Volume'])/(np.pi* props[0].major_axis_length**2)
         
         # ASPECT RATIO
         if any('DCF:Aspect Ratio' in string for string in self.listfeats):  
-            features['DCF:Aspect Ratio']       = (props[0].major_axis_length)/ props[0].minor_axis_length #Aspect ratio.
+            features['Aspect Ratio']       = (props[0].major_axis_length)/ props[0].minor_axis_length #Aspect ratio.
         
         # ORIENTATION
         try:
-            features['DCF:Orientation']         = props[0].orientation 
+            features['Orientation']         = props[0].orientation 
         except:
-            features['DCF:Orientation']         = 0
+            features['Orientation']         = 0
         
         # SOLIDITY
         if any('DCF:Solidity' in string for string in self.listfeats):  
-            features['DCF:Solidity']            = props[0].solidity #Ratio of pixels in the region to pixels of the convex hull image.  
+            features['Solidity']            = props[0].solidity #Ratio of pixels in the region to pixels of the convex hull image.  
         
         # ROUGHNESS
         if any('DCF:Roughness' in string for string in self.listfeats):  
@@ -568,9 +568,9 @@ class processingDCF:
                 vertsh, facesh, normalsh, valuesh = marching_cubes(imconv, spacing=getvoxelsize(self.original_folder))
                 perihull = mesh_surface_area(vertsh,facesh)
 
-                features['DCF:Roughness']           = features['DCF:Perimeter']/perihull # get convex image of roi and compute perimeter as Ratio of perimeter of region to perimeter of the convex hull image.
+                features['Roughness']           = features['Perimeter']/perihull # get convex image of roi and compute perimeter as Ratio of perimeter of region to perimeter of the convex hull image.
             except:
-                features['DCF:Roughness']           = 0
+                features['Roughness']           = 0
             
 #         try:
 #             features['Hu Moment #1']        = props[0].moments_hu[0] #tuple - Hu moments (translation, scale and rotation invariant) of intensity image.
@@ -598,24 +598,24 @@ class processingDCF:
         features['Crofton Perimeter']   = props[0].perimeter_crofton
         
         # --- INTENSITY
-        features['DCF:Mean Intensity'] = np.mean(self.imgzero) 
-        features['DCF:Std']            = np.std(self.imgzero) 
-        features['DCF:Variance']       = np.var(self.imgzero) 
-        features['DCF:Skewness']       = skew(self.imgzero) 
-        features['DCF:Kurtosis']       = kurtosis(self.imgzero) 
-        features['DCF:Contrast']       = np.std(self.hist) #contrast can be defined as std of histogram of intensity
-        features['DCF:Max Intensity']  = props[0].max_intensity #Value with the greatest intensity in the region.
-        features['DCF:Min Intensity']  = props[0].min_intensity #Value with the greatest intensity in the region.
-        features['DCF:Entropy']        = shannon_entropy(self.img, base=2) 
-        features['DCF:CV']             = features['DCF:Std'] / features['DCF:Mean Intensity']
+        features['Mean Intensity'] = np.mean(self.imgzero) 
+        features['Std']            = np.std(self.imgzero) 
+        features['Variance']       = np.var(self.imgzero) 
+        features['Skewness']       = skew(self.imgzero) 
+        features['Kurtosis']       = kurtosis(self.imgzero) 
+        features['Contrast']       = np.std(self.hist) #contrast can be defined as std of histogram of intensity
+        features['Max Intensity']  = props[0].max_intensity #Value with the greatest intensity in the region.
+        features['Min Intensity']  = props[0].min_intensity #Value with the greatest intensity in the region.
+        features['Entropy']        = shannon_entropy(self.img, base=2) 
+        features['CV']             = features['Std'] / features['Mean Intensity']
         
-        features['DCF:Inertia Tensor Highest Eigenvalue'] = props[0].inertia_tensor_eigvals[0]
-        features['DCF:Inertia Tensor Lowest Eigenvalue'] = props[0].inertia_tensor_eigvals[1]
+        features['Inertia Tensor Highest Eigenvalue'] = props[0].inertia_tensor_eigvals[0]
+        features['Inertia Tensor Lowest Eigenvalue'] = props[0].inertia_tensor_eigvals[1]
         
 
         if any(('DCF:AAI' in string or 'DCF:AMI' in string or 'DCF:AFI' in string ) for string in self.listfeats):
             if type(self.skel) != str:
-                features['DCF:AAI'] = getAAI(self.skel)
+                features['AAI'] = getAAI(self.skel)
 
     
 
@@ -633,59 +633,59 @@ class processingDCF:
 
         # UNIFORMITY
         if any('DCF:Uniformity' in string for string in self.listfeats):
-            features['DCF:Uniformity']              = list(unif) #uniformity for each matrix/angle
+            features['Uniformity']              = list(unif) #uniformity for each matrix/angle
         
         # INVARIANT UNIFORMITY
         if any('DCF:Invariant Uniformity' in string for string in self.listfeats):
-            features['DCF:Invariant Uniformity']    = (matrix ** 2).sum()
+            features['Invariant Uniformity']    = (matrix ** 2).sum()
         
         # GLCM ENTROPY
         if any('DCF:GLCM Entropy' in string for string in self.listfeats):
-            features['DCF:GLCM Entropy']            = list(ent) #same, but for entropy
+            features['GLCM Entropy']            = list(ent) #same, but for entropy
         
         # GLCM INVARIANT ENTROPY
         if any('DCF:GLCM Invariant Entropy' in string for string in self.listfeats):
-            features['DCF:GLCM Invariant Entropy']  = shannon_entropy(matrix)
+            features['GLCM Invariant Entropy']  = shannon_entropy(matrix)
         
         # CORRELATION
         if any('DCF:Correlation' in string for string in self.listfeats):
-            features['DCF:Correlation']             = graycoprops(self.glcm, 'correlation')[0]
+            features['Correlation']             = graycoprops(self.glcm, 'correlation')[0]
         
         # INVARIANT CORRELATION
         if any('DCF:Invariant Correlation' in string for string in self.listfeats):
-            features['DCF:Invariant Correlation']   = float(graycoprops(self.matrix, 'correlation')[0][0])
+            features['Invariant Correlation']   = float(graycoprops(self.matrix, 'correlation')[0][0])
         
         # DISSIMILARITY
         if any('DCF:Dissimilarity' in string for string in self.listfeats):
-            features['DCF:Dissimilarity']           = graycoprops(self.glcm, 'dissimilarity')[0]
+            features['Dissimilarity']           = graycoprops(self.glcm, 'dissimilarity')[0]
         
         # INVARIANT DISSIMILARITY
         if any('DCF:Invariant Dissimilarity' in string for string in self.listfeats):
-            features['DCF:Invariant Dissimilarity'] = float(graycoprops(self.matrix, 'dissimilarity')[0][0])   
+            features['Invariant Dissimilarity'] = float(graycoprops(self.matrix, 'dissimilarity')[0][0])   
         
         # CONTRAST
         if any('DCF:Contrast' in string for string in self.listfeats):
-            features['DCF:Contrast']                = graycoprops(self.glcm, 'contrast')[0]
+            features['Contrast']                = graycoprops(self.glcm, 'contrast')[0]
         
         # INVARIANT CONTRAST
         if any('DCF:Invariant Contrast' in string for string in self.listfeats):
-            features['DCF:Invariant Contrast']      = float(graycoprops(self.matrix, 'contrast')[0][0])
+            features['Invariant Contrast']      = float(graycoprops(self.matrix, 'contrast')[0][0])
         
         # HOMOGENEITY
         if any('DCF:Homogeneity' in string for string in self.listfeats):
-            features['DCF:Homogeneity']             = graycoprops(self.glcm, 'homogeneity')[0]
+            features['Homogeneity']             = graycoprops(self.glcm, 'homogeneity')[0]
         
         # INVARIANT HOMOGENEITY
         if any('DCF:Invariant Homogeneity' in string for string in self.listfeats):
-            features['DCF:Invariant Homogeneity']   = float(graycoprops(self.matrix, 'homogeneity')[0][0])
+            features['Invariant Homogeneity']   = float(graycoprops(self.matrix, 'homogeneity')[0][0])
         
         # ENERGY
         if any('DCF:Energy' in string for string in self.listfeats):
-            features['DCF:Energy']                  = graycoprops(self.glcm, 'energy')[0]
+            features['Energy']                  = graycoprops(self.glcm, 'energy')[0]
         
         # INVARIANT ENERGY
         if any('DCF:Invariant Energy' in string for string in self.listfeats):
-            features['DCF:Invariant Energy']        = float(graycoprops(self.matrix, 'energy')[0][0])
+            features['Invariant Energy']        = float(graycoprops(self.matrix, 'energy')[0][0])
 
 
         
@@ -693,7 +693,7 @@ class processingDCF:
         # --- Freq
         # Gabor
 #         try:
-        features['DCF:Mean Gabor Power'] = mean(self.powers)
+        features['Mean Gabor Power'] = mean(self.powers)
 
         f_var,f_mean,f_energy,f_ent    = [],[],[],[]
         for k, kernel in enumerate(self.kernels):
@@ -703,17 +703,17 @@ class processingDCF:
             f_energy.append(np.sum(np.power(filtered.ravel(),2))/len(filtered.ravel()))
             f_ent.append(shannon_entropy(filtered))
 
-        features['DCF:Gabor Variance'] = mean(f_var)
-        features['DCF:Gabor Mean']     = mean(f_mean)
-        features['DCF:Gabor Energy']   = mean(f_energy)
-        features['DCF:Gabor Entropy']  = mean(f_ent)
+        features['Gabor Variance'] = mean(f_var)
+        features['Gabor Mean']     = mean(f_mean)
+        features['Gabor Energy']   = mean(f_energy)
+        features['Gabor Entropy']  = mean(f_ent)
 
         # --- FFT
         f                  = np.fft.fft2(self.img)
         fshift             = np.fft.fftshift(f)
         magnitude_spectrum = 20*np.log(np.abs(fshift))
 
-        features['DCF:Mean Spectral Magnitude'] = np.mean(magnitude_spectrum) #in dB
+        features['Mean Spectral Magnitude'] = np.mean(magnitude_spectrum) #in dB
 
         # --- Welch
         f_psd, Pxx = signal.welch(self.img)
@@ -721,7 +721,7 @@ class processingDCF:
         sum_int    = np.sum(Pxx)
         mean_pxx   = np.sum(sum_fp)/sum_int
 
-        features['DCF:Mean Spectral Power'] = mean_pxx
+        features['Mean Spectral Power'] = mean_pxx
 
 #             for k in features.keys():
 #                 try:
@@ -744,20 +744,20 @@ class processingDCF:
         if any('DCF:Fractal Dimension Skeleton' in string for string in self.listfeats):
             if type(self.skel) != str:
                 FD_skel = fractal_dimension((self.skel>0)*1)
-                features['DCF:Fractal Dimension Skeleton'] = FD_skel
+                features['Fractal Dimension Skeleton'] = FD_skel
     #         except:
     #             pass
         
 
 
         if self.dim == 3:
-            if 100*(features['DCF:Volume convex'] - features['DCF:Volume'])/features['DCF:Volume'] > 250:
+            if 100*(features['Volume convex'] - features['Volume'])/features['Volume'] > 250:
                 print('Volume convex exceeded 200%')
                 features = {}
                 return features
         if self.dim == 2:
-            if 100*(features['DCF:Area convex'] - features['DCF:Area'])/features['DCF:Area'] > 250:
-                print('Area convex exceeded 200%, precisely: ' + str(100*(features['DCF:Area convex'] - features['DCF:Area'])/features['DCF:Area']))
+            if 100*(features['Area convex'] - features['Area'])/features['Area'] > 250:
+                print('Area convex exceeded 200%, precisely: ' + str(100*(features['Area convex'] - features['Area'])/features['Area']))
                 features = {}
                 return features
             

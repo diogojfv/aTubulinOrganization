@@ -5,13 +5,19 @@ import matplotlib.pyplot as plt
 from roipoly import RoiPoly
 import cv2
 
+
+def retrieve_mask(coordinates, dims):
+    mask = np.zeros(dims)
+    mask[coordinates] = 1
+    return mask
+
 def roi_selector(data,img_id,ROIsDF):
     global ROI
     import copy
     print('🔎')
     
     if type(ROIsDF) != pd.core.frame.DataFrame:
-        ROIsDF    = pd.DataFrame(columns = ['Name','Index','Label','ROImask'])
+        ROIsDF    = pd.DataFrame(columns = ['Name','Index','Label','Image Size','ROImask'])
        
     ROIsDF_ = copy.deepcopy(ROIsDF)
     
@@ -19,15 +25,17 @@ def roi_selector(data,img_id,ROIsDF):
     try:
         while 1:
             # Handle figure
-            plt.close('all')
+            #plt.close('all')
             fig,ax = plt.subplots(figsize=(30,30))
-            plt.imshow(data['CYTO'].loc[img_id]['Image'])
+            plt.imshow(data['CYTO'].loc[img_id]['Image'],cmap='gray')
             plt.axis('off')
             
             # Handle variables
             ROI     = RoiPoly(fig=fig, ax=ax, color='r')
             mask    = ROI.get_mask(data['CYTO'].loc[img_id]['Image'])
-            new     = pd.DataFrame(data = {'Name': [data['CYTO']['Name'][img_id]],'Index': [img_id], 'Label': [data['CYTO']['Label'][img_id]], 'ROImask': [mask]})
+            non_zero_indices = np.where((mask*1)!=0)
+            #mask_coordinates = list(zip(non_zero_indices[0], non_zero_indices[1]))
+            new     = pd.DataFrame(data = {'Name': [data['CYTO']['Name'][img_id]],'Index': [img_id], 'Label': [data['CYTO']['Label'][img_id]], 'Image Size': [mask.shape] ,'ROImask': [non_zero_indices]})
             ROIsDF_ = pd.concat([ROIsDF_, new], axis=0,ignore_index=True)
 
     except Exception as e:
@@ -41,13 +49,13 @@ def plot_selected_ROIs(ROIs2,img_id):
     i = 0
     for index,row in df.iterrows():
         if i == 0:
-            auxx = row['ROImask']
+            auxx = retrieve_mask(row['ROImask'],row['Image Size'])
             i = 1
         else:
-            auxx = auxx + row['ROImask']
+            auxx = auxx + retrieve_mask(row['ROImask'],row['Image Size'])
 
     fig,ax = plt.subplots(figsize=(10,10))
-    plt.imshow(auxx,cmap='rainbow')
+    plt.imshow(auxx,cmap='viridis')
     plt.axis('off')
 
     plt.show()

@@ -44,16 +44,46 @@ from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_n
 from framework.importing import *
 #from framework.PreProcessingCYTO import cytoskeleton_preprocessing, df_cytoskeleton_preprocessing
 #from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
-
+from framework.processing import *
 #from framework.visualization import truncate_colormap, plot_hist, plot_pie
 #from fractal_dimension import fractal_dimension
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
 
-def cyto_network_features(Results):
-    # Initialize LSF list
+def cyto_network_features(ResultsRow,listfeats):
+    """
+    - ResultsRow   = ResultsDF row
+    - features     = list of features
+    """
+    
+    # Initialize CNF list
     res = []
     
-    # cont.
+    if 'CNF1D:Number of Branches' in listfeats:
+        res += [('CNF1D:Number of Branches', branches_number(ResultsRow))]
+        
+    if 'CNF2D:Branch Lengths' in listfeats:
+        res += [('CNF2D:Branch Lengths', graph_path_lengths(ResultsRow))]
+    
+    if 'CNF2D:Branch Orientations' in listfeats:
+        res += [('CNF2D:Branch Orientations', graph_orientation(ResultsRow))]
+        
+    if 'CNF2D:Branch Orientations PCA' in listfeats:
+        res += [('CNF2D:Branch Orientations PCA', graph_orientation_pca(ResultsRow))]
+        
+    if 'CNF2D:Local Average Branch Distances' in listfeats:
+        res += [('CNF2D:Local Average Branch Distances', graph_compactness_bundling_parallelism(ResultsRow,neighborhood=5)[0])]
+    
+    if 'CNF2D:Local Average Bundling Score' in listfeats:
+        res += [('CNF2D:Local Average Bundling Score', graph_compactness_bundling_parallelism(ResultsRow,neighborhood=5)[1])]
+        
+    if 'CNF2D:Local Average Branch Orientation' in listfeats:
+        res += [('CNF2D:Local Average Branch Orientation', graph_compactness_bundling_parallelism(ResultsRow,neighborhood=5)[2])]
+        
+    if 'CNF2D:Distances to Centroid' in listfeats:
+        res += [('CNF2D:Distances to Centroid', graph_cytonuc_dist(ResultsRow))]
+    #if 'CNF2D:Mean Filament Thickness' in listfeats:
+        
+    #cont.
     return res
 
 # ResultsDF['CNF2D:Branch Orientation']               = [graph_orientation(getske(row,data)) for index,row in ResultsDF.iterrows()]
@@ -72,12 +102,22 @@ def cyto_network_features(Results):
 #ResultsDF['CNF1D:N over A (scaled)'] = ResultsDF['SKNW:Number of Branches'] / (ResultsDF['DCF:Area 2']*0.16125**2)
 
 def getske(ResultsRow,data):
-    img       = data['CYTO']['Image'][ResultsRow['Img Index']] / np.max(data['CYTO']['Image'][ResultsRow['Img Index']])
-    intensity = ResultsRow['Mask'] * img
-    ske       = Skeleton(skeleton_image=(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]*(intensity/np.max(intensity))).astype(float),spacing=0.1612500) 
+    img = retrieve_mask(ResultsRow['Skeleton'],ResultsRow['Image Size'])
+    #img       = ResultsRow['Patch:Skeleton Max'] 
+    ske       = Skeleton(skeleton_image = img.astype(float),
+                         spacing        = 0.1612500) # ResultsRow['Resolution'][2] ou [1] ou os dois
+    
+    
+#     img       = data['CYTO']['Image'][ResultsRow['Img Index']] / np.max(data['CYTO']['Image'][ResultsRow['Img Index']])
+#     intensity = ResultsRow['Mask'] * img
+#     ske       = Skeleton(skeleton_image=(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]*(intensity/np.max(intensity))).astype(float),spacing=0.1612500) 
     
     return ske
 
+def graph_path_lengths(ResultsRow):
+    ske = getske(ResultsRow,data)
+    return ske.path_lengths()
+                
 def branch_middle(path):
     L = len(path)
     if L % 2 == 0: # L Even
@@ -90,7 +130,7 @@ def branch_middle(path):
 def graph_middles(sk):
     return [branch_middle(sk.path_coordinates(b)) for b in range(sk.n_paths)]
 
-def graph_thickness(ResultsRow):
+def graph_thickness(ResultsRow,data):
     from scipy import ndimage
     
     # Get skeleton and texture
@@ -145,7 +185,8 @@ def branch_orientation(path):
     if orientation_deg < 0:
         return orientation_deg + 180
     
-def graph_orientation(sk):
+def graph_orientation(ResultsRow):
+    sk = getske(ResultsRow,data)
     return [branch_orientation(sk.path_coordinates(b)) for b in range(sk.n_paths)]
 
 def branch_orientation_pca(path):
@@ -163,15 +204,17 @@ def branch_orientation_pca(path):
     if orientation_deg < 0:
         return orientation_deg + 180
 
-def graph_orientation_pca(sk):
+def graph_orientation_pca(ResultsRow):
+    sk = getske(ResultsRow,data)
     return [branch_orientation_pca(sk.path_coordinates(b)) for b in range(sk.n_paths)]
 
 
 
-def graph_compactness_bundling_parallelism(sk,neighborhood = 5):
+def graph_compactness_bundling_parallelism(ResultsRow,neighborhood = 5):
+    sk = getske(ResultsRow,data)
     # Get median points and orientations
     median_points = graph_middles(sk)
-    orientations  = graph_orientation(sk)
+    orientations  = graph_orientation(ResultsRow)
     
     # Distance matrix
     d             = distance_matrix(median_points,median_points); np.fill_diagonal(d,np.max(d));
@@ -241,21 +284,24 @@ def branch_cytonuc_dist(path,c):
     return round(np.linalg.norm(center_med_vec)*0.1612500,3)
 
 def graph_cytonuc_dist(ResultsRow):
-    x_,y_   = np.where((ResultsRow['Mask']*1) != 0)
-    imgIndex = ResultsRow['Img Index']
+    #x_,y_   = np.where((ResultsRow['Mask']*1) != 0)
+    #imgIndex = ResultsRow['Img Index']
 
-    for index,row in CentroidsDF[imgIndex].iterrows():
-        if (round(row['Centroid'][0]),round(row['Centroid'][1])) in list(zip(x_,y_)):
-            centroid = (row['Centroid'][1],row['Centroid'][0])
-            break
-    try:
-        centroid
-    except:
-        centroid = (0,0)
-        print('centroid not found. set to (0,0)')
+#     for index,row in CentroidsDF[imgIndex].iterrows():
+#         if (round(row['Centroid'][0]),round(row['Centroid'][1])) in list(zip(x_,y_)):
+#             centroid = (row['Centroid'][1],row['Centroid'][0])
+#             break
+#     try:
+#         centroid
+#     except:
+#         centroid = (0,0)
+#         print('centroid not found. set to (0,0)')
+
+    centroid = ResultsRow['Nucleus Centroid']
+    ske      = getske(ResultsRow,data)
         
     #ske = getske(ResultsRow,data)
-    ske       = Skeleton(skeleton_image=(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]).astype(float)) 
+    #ske       = Skeleton(skeleton_image=(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]).astype(float)) 
     
     return [branch_cytonuc_dist(ske.path_coordinates(b),centroid) for b in range(ske.n_paths)]
 

@@ -57,7 +57,7 @@ from framework.importing import *
 
 
 
-def cytoskeleton_preprocessing(image, algorithm, parameters,plot,save):
+def cytoskeleton_preprocessing(rowCYTO, algorithm, parameters,plot,save):
     """
     Preprocessing of a cytoskeleton image
         - image      = [image, image index]
@@ -66,11 +66,13 @@ def cytoskeleton_preprocessing(image, algorithm, parameters,plot,save):
         - plot       = bool
         - save       = save string
     """
+    
+    image = [rowCYTO['Image'],rowCYTO.name]
 
     # Imports
     from skimage.filters import meijering, sato, frangi, hessian, threshold_otsu, laplace, threshold_yen, rank
     from skimage.util import img_as_ubyte
-    from skimage.morphology import extrema, skeletonize, disk
+    from skimage.morphology import extrema, skeletonize, disk, remove_small_objects
     from skimage import filters
     
     global texture,skeleton,e,s
@@ -190,6 +192,8 @@ def cytoskeleton_preprocessing(image, algorithm, parameters,plot,save):
         texture = ((1 - h)!=0)*1
         skeleton = skeletonize(texture)
         
+
+        
         titulos = ['original','gaussian','sato','hessian','skeleton']
         imagens = [ini,gau,s,texture,skeleton]
         
@@ -292,9 +296,12 @@ def cytoskeleton_preprocessing(image, algorithm, parameters,plot,save):
 #             if type(save) == str:
 #                 plt.savefig(save + "_overlay.png",format='png',transparent=True,bbox_inches='tight',dpi=500)
 #             plt.show()
-
-
-    return texture,skeleton
+    if 'CYTO_PRE' not in globals():
+        CYTO_PRE = pd.DataFrame(columns=['Path','Name','Img Index','Label','Image Size','Texture','Skeleton'])
+    
+    new       = pd.DataFrame(data={'Path': [rowCYTO['Path']], 'Name': [rowCYTO['Name']], 'Img Index': [rowCYTO.name], 'Label': [rowCYTO['Label']], 'Image Size': [rowCYTO['Image Size']],'Texture': [texture], 'Skeleton': [skeleton*1]}, index = [rowCYTO.name])
+    CYTO_PRE = pd.concat([CYTO_PRE, new],ignore_index=False)
+    return CYTO_PRE
 
 
 def imageshow(image,figsize=(10,10),title=None,axis='off',inv=False,cmap='gray',save=False):

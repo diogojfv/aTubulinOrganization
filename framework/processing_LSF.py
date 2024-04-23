@@ -50,7 +50,7 @@ from framework.processing import centroid_find
 #from fractal_analysis_fxns import boxcount,boxcount_grayscale,fractal_dimension,fractal_dimension_grayscale,fractal_dimension_grayscale_DBC
 
 def lines_theta(ResultsRow):
-    lines = ResultsRow['Lines LinReg']
+    lines = ResultsRow['Lines']
     thetas = []
     for line in lines:
         p0, p1 = line
@@ -68,27 +68,29 @@ def lines_theta(ResultsRow):
 
 #ResultsDF["LSF2D:Theta (LinReg)"] = [lines_theta(row) for index,row in ResultsDF.iterrows()]
 
-def lines_cytonuc_dist(ResultsRow,CentroidsDF):
-    centroid = centroid_find(ResultsRow,CentroidsDF)
+def lines_cytonuc_dist(ResultsRow):
+    #centroid = centroid_find(ResultsRow,CentroidsDF)
+    centroid = ResultsRow['Nucleus Centroid']
     
     dists = []
-    for line in ResultsRow['Lines LinReg']:
+    for line in ResultsRow['Lines']:
         p0, p1 = line
         
         med_point      = ((p0[0] + p1[0])/2,(p0[1] + p1[1])/2)
         center_med_vec = np.array(med_point) - np.array([centroid[0],centroid[1]])
-        dists += [round(np.linalg.norm(center_med_vec)*0.16125,3)]
+        dists += [round(np.linalg.norm(center_med_vec)*ResultsRow['Resolution'][1],3)]
         
     return dists
 
 #ResultsDF["LSF2D:Distances to Centroid (LinReg) (scaled)"] = [lines_cytonuc_dist(row) for index,row in ResultsDF.iterrows()]
 
 
-def lines_cytonuc_alpha(ResultsRow,CentroidsDF):
-    centroid = centroid_find(ResultsRow,CentroidsDF)
+def lines_cytonuc_alpha(ResultsRow):
+    #centroid = centroid_find(ResultsRow,CentroidsDF)
+    centroid = ResultsRow['Nucleus Centroid']
     
     alphas = []
-    for line in ResultsRow['Lines LinReg']:
+    for line in ResultsRow['Lines']:
         p0, p1 = line
         
         med_point      = ((p0[0] + p1[0])/2,(p0[1] + p1[1])/2)
@@ -104,13 +106,13 @@ def lines_cytonuc_alpha(ResultsRow,CentroidsDF):
 # ResultsDF["LSF2D:Alphas (LinReg)"] = [lines_cytonuc_alpha(row) for index,row in ResultsDF.iterrows()]
 
 def lines_angdiff(ResultsRow):    
-    median_points = [((line[0][0] + line[1][0])/2,(line[0][1] + line[1][1])/2) for line in ResultsRow['Lines LinReg']]
+    median_points = [((line[0][0] + line[1][0])/2,(line[0][1] + line[1][1])/2) for line in ResultsRow['Lines']]
     d             = distance_matrix(median_points,median_points); np.fill_diagonal(d,np.max(d));
     d_0           = distance_matrix(median_points,median_points); np.fill_diagonal(d_0,0);
     
     ind = 0
     close_angle = []
-    for line in ResultsRow['Lines LinReg']:
+    for line in ResultsRow['Lines']:
         p0, p1 = line
         
         med_point      = ((p0[0] + p1[0])/2,(p0[1] + p1[1])/2)
@@ -135,7 +137,7 @@ def lines_angdiff(ResultsRow):
             # calculate angle of the _'th closest line - MANDATORY
             min_val          = np.min(dists_to_medpoint)
             close_line_ind   = np.where(dists_to_medpoint == min_val)[0][0]
-            p0_c, p1_c       = ResultsRow['Lines LinReg'][close_line_ind] 
+            p0_c, p1_c       = ResultsRow['Lines'][close_line_ind] 
             med_point_c      = ((p0_c[0] + p1_c[0])/2,(p0_c[1] + p1_c[1])/2)
             #center_med_vec_c = np.array(med_point_c) - np.array([centroid[1],centroid[0]])
             line_vec_c       = np.array(p1_c) - np.array(p0_c)
@@ -157,14 +159,17 @@ def lines_angdiff(ResultsRow):
 def lines_CVar(ResultsRow):
     from scipy.stats import circvar
     
-    angles = ResultsRow['LSF2D:Theta (LinReg)']
+    angles = ResultsRow['LSF2D:Theta']
     
     return circvar(np.array(angles)*np.pi/180,low=0,high=np.pi)
 
 # ResultsDF['LSF1D:Circular Variance (LinReg)'] =  [lines_CVar(row) for index,row in ResultsDF.iterrows()]
 
 def lines_OOP(ResultsRow):
-    angles = ResultsRow["LSF2D:Theta (LinReg)"]
+    if "LSF2D:Theta" not in ResultsRow.index:
+        angles = lines_theta(ResultsRow)
+    else:
+        angles = ResultsRow["LSF2D:Theta"]
     theta_rad = np.array(angles)*np.pi/180
 
     OrderTensors = []
@@ -188,7 +193,7 @@ def lines_OOP(ResultsRow):
 
 
 def lines_N(ResultsRow):
-    return len(ResultsRow["Lines LinReg"])
+    return len(ResultsRow["Lines"])
 
 # ResultsDF['LSF1D:Number of Lines (LinReg)'] = [lines_N(row) for _,row in ResultsDF.iterrows()]
 
@@ -197,15 +202,16 @@ def lines_RS_cent_dist(ResultsRow,CentroidsDF):
     x_,y_   = np.where((ResultsRow['Mask']*1) != 0)
     imgIndex = ResultsRow['Img Index']
     # Find centroid
-    for index,row in CentroidsDF[imgIndex].iterrows():
-        if (round(row['Centroid'][0]),round(row['Centroid'][1])) in list(zip(x_,y_)):
-            centroid = (row['Centroid'][1],row['Centroid'][0])
-            break
-    try:
-        centroid
-    except:
-        centroid = (0,0)
-        print('centroid not found. set to (0,0)')
+    centroid = ResultsRow['Nucleus Centroid']
+#     for index,row in CentroidsDF[imgIndex].iterrows():
+#         if (round(row['Centroid'][0]),round(row['Centroid'][1])) in list(zip(x_,y_)):
+#             centroid = (row['Centroid'][1],row['Centroid'][0])
+#             break
+#     try:
+#         centroid
+#     except:
+#         centroid = (0,0)
+#         print('centroid not found. set to (0,0)')
     
     rspos = np.array([ResultsRow['LSF:Radial Pos 2'][1],ResultsRow['LSF:Radial Pos 2'][0]])
     return np.linalg.norm(np.array(centroid) - rspos)*0.16125
@@ -228,8 +234,35 @@ def line_segment_features(ResultsRow,listfeats):
     # Initialize LSF list
     res = []
     
+    ### 2D FEATURES
+    
+    if 'LSF2D:Theta' in listfeats:
+        res += [('LSF2D:Theta',lines_theta(ResultsRow))]
+        
+    if 'LSF2D:Distances to Centroid' in listfeats:
+        res += [('LSF2D:Distances to Centroid',lines_cytonuc_dist(ResultsRow))]
+        
+    if 'LSF2D:Alphas' in listfeats:
+        res += [('LSF2D:Alphas',lines_cytonuc_alpha(ResultsRow))]
+        
+    if 'LSF2D:Angle Difference' in listfeats:
+        res += [('LSF2D:Angle Difference',lines_angdiff(ResultsRow))]
+      
+    
+    ### 1D FEATURES
+    
     if 'LSF1D:Number of Lines' in listfeats:
         res += [('LSF1D:Number of Lines',lines_N(ResultsRow))]
+        
+    if 'LSF1D:OOP' in listfeats:
+        res += [('LSF1D:OOP',lines_OOP(ResultsRow))]
+        
+    if 'LSF1D:CVar' in listfeats:
+        res += [('LSF1D:CVar',lines_OOP(ResultsRow))]
+        
+    
+        
+        
         
     #cont.
     return res

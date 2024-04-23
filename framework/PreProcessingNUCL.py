@@ -403,6 +403,7 @@ def nuclei_preprocessing(rowNUCL,dir_masks,plot,save):
     name  = rowNUCL['Name']
     image = rowNUCL['Image']
     label = rowNUCL['Label']
+    sizes = rowNUCL['Image Size']
     
     if len(image.shape) == 2:
         dim = 2
@@ -487,8 +488,8 @@ def nuclei_preprocessing(rowNUCL,dir_masks,plot,save):
         # Add to dataframe
         global new
         if 'NUCL_PRE' not in globals():
-            NUCL_PRE = pd.DataFrame(columns = ['Img Index'] + ['Label'] + ['Nucleus Mask'] + ['Centroid'] + ['Contour']) 
-        new   = pd.Series([idx] + [label] + [pixels] + [cent] + [contour[0]],index=NUCL_PRE.columns)
+            NUCL_PRE = pd.DataFrame(columns = ['Path'] + ['Img Index'] + ['Label'] + ['Image Size'] + ['Nucleus Mask'] + ['Centroid'] + ['Contour']) 
+        new   = pd.Series([rowNUCL['Path']] + [idx] + [label] + [sizes] + [pixels] + [cent] + [contour[0]],index=NUCL_PRE.columns)
         NUCL_PRE = pd.concat([NUCL_PRE,new.to_frame().T],axis=0,ignore_index=True)
         
         

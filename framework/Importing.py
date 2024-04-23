@@ -107,39 +107,39 @@ def init_import(folder, options, denominator):
     
     # RGB NUCLEI + TUBULIN IMAGES
     if "RGB" in options: 
-        OriginalDF = pd.DataFrame(columns=['Name','Label','Image'])
+        OriginalDF = pd.DataFrame(columns=['Path','Name','Label','Resolution','Image','Image Size'])
         for img in os.listdir(folder + "\\RGB"):
             path       = folder + "\\RGB\\" + img
             zres, xres, yres = getvoxelsize(path)
-            zres, xres, yres = 1*zres, 10**4*xres, 10**4*yres
+            #zres, xres, yres = 1*zres, 10**4*xres, 10**4*yres
             image      = cv2.imread(path,cv2.IMREAD_COLOR)  # Size: (1040, 1388, 3)
-            new        = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [denominator(img)[1]], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image]}, index = [denominator(img)[0]])
+            new        = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [denominator(img)[1]], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image], 'Image Size': [image.shape]}, index = [denominator(img)[0]])
             OriginalDF = pd.concat([OriginalDF, new], axis=0,ignore_index=False)
         res["RGB"] = OriginalDF
         print(">>> [RGB] added.")
         
     # GRAY-SCALE (2D) DECONVOLUTED CYTOSKELETON IMAGES
     if "CYTO" in options:
-        DeconvDF = pd.DataFrame(columns=['Path','Name','Label','Image'])
+        DeconvDF = pd.DataFrame(columns=['Path','Name','Label','Resolution','Image','Image Size'])
         for img in os.listdir(folder + "\\CYTO"):
             path     = folder + "\\CYTO\\" + img
             zres, xres, yres = getvoxelsize(path)
-            zres, xres, yres = 1*zres, 10**4*xres, 10**4*yres
+            #zres, xres, yres = 1*zres, 10**4*xres, 10**4*yres
             image    = cv2.imread(path,-1)  
-            new  = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img)[1]], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image]}, index = [denominator(img)[0]])
+            new  = pd.DataFrame(data={'Path': [path],'Name': [img], 'Label': [denominator(img)[1]], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image], 'Image Size': [image.shape]}, index = [denominator(img)[0]])
             DeconvDF = pd.concat([DeconvDF, new], axis=0,ignore_index=False)
         res["CYTO"] = DeconvDF
         print(">>> [CYTO] added.")
         
     # GRAY-SCALE (2D) DECONVOLUTED NUCLEI IMAGES
     if "NUCL" in options:
-        NucleiDeconvDF = pd.DataFrame(columns=['Path','Name','Label','Image'])
+        NucleiDeconvDF = pd.DataFrame(columns=['Path','Name','Label','Resolution','Image','Image Size'])
         for img in os.listdir(folder + "\\NUCL"):
             path           = folder + "\\NUCL\\" + img
             zres, xres, yres = getvoxelsize(path)
             zres, xres, yres = 1*zres, 10**4*xres, 10**4*yres
             image          = cv2.imread(path,-1)
-            new  = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [denominator(img)[1]], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image]}, index = [denominator(img)[0]])
+            new  = pd.DataFrame(data={'Path': [path], 'Name': [img], 'Label': [denominator(img)[1]], 'Resolution': [(round(zres,6),round(xres,6),round(yres,6))], 'Image': [image], 'Image Size': [image.shape]}, index = [denominator(img)[0]])
             NucleiDeconvDF = pd.concat([NucleiDeconvDF, new], axis=0,ignore_index=False)
         res["NUCL"] = NucleiDeconvDF
         print(">>> [NUCL] added.")
@@ -172,26 +172,27 @@ def init_import(folder, options, denominator):
     return res
 
 # EXTRACT VOXEL SIZE FROM IMG
-def getvoxelsize(folder):
+def getvoxelsize(tiff_path):
     import tifffile as tf
-    with tf.TiffFile(folder) as tif:
-        ij_metadata = tif.imagej_metadata
-        num_pixels_x, units_x = tif.pages[0].tags['XResolution'].value
-        xres = units_x / num_pixels_x
-        num_pixels_y, units_y = tif.pages[0].tags['YResolution'].value
-        yres = units_y / num_pixels_y
+    
+    with tf.TiffFile(tiff_path) as tif:
+        # Retrieve the first page of tags
+        tags = tif.pages[0].tags
+        
+        # Get resolution in pixels per unit (supposedly microns)
+        x_res = tags['XResolution'].value
+        y_res = tags['YResolution'].value
+        
+        # Calculate resolution in pixels per unit
+        x_pixels_per_unit = x_res[0] / x_res[1]
+        y_pixels_per_unit = y_res[0] / y_res[1]
+        
+        # Since units are already in microns, calculate the size per pixel
+        x_size_microns = 10**(-4) / x_pixels_per_unit 
+        y_size_microns = 10**(-4) / y_pixels_per_unit 
 
-    if ij_metadata is not None:
-        try:
-            zres = ij_metadata['spacing']
-        except:
-            #print('Image is 2D. Using default voxel height (z = 1)')
-            return 1,xres,yres
-    else:
-        print('Using default voxel height (z = 1)')
-        zres = 1
+    return 1,x_size_microns, y_size_microns
 
-    return zres,xres,yres
 
 # WIDGET IMPORT
 def widget_import_dataset():

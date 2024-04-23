@@ -60,7 +60,8 @@ from framework.processing_DCF import *
 from framework.Functions import cv2toski,pylsdtoski,polar_to_cartesian, remove_not1D, quantitative_analysis,hist_bin,hist_lim,branch,graphAnalysis
 from framework.importing import *
 #from framework.PreProcessingNUCL import excludeborder, nuclei_preprocessing, df_nuclei_preprocessing, nuclei_segmentation
-from framework.processing import process3Dnuclei,analyze_cell
+from framework.processing import *
+from framework.processing_CNF import *
 
      
 def set_background(color): 
@@ -161,14 +162,17 @@ def intensity_plotter(ResultsRow,data,save):
     colors = [(1, 1, 1), (1, 0, 0)] # first color is white, last is red
     cm     = LinearSegmentedColormap.from_list("Custom", colors, N=300)
     
+    x_,y_ = ResultsRow['Mask']
+    mask = retrieve_mask(ResultsRow['Mask'],ResultsRow['Image Size'])
+    
     ##### FIGURE 1
     # Initialize figure 1
     fig,ax = plt.subplots(figsize=(8,8))
-    ax.imshow(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']],cmap=cm)
+    ax.imshow(mask*retrieve_mask(ResultsRow['Skeleton'],ResultsRow['Image Size']),cmap=cm)
     ax.axis('off')
     
     # Plot Nucleus Centroid and Cytoskeleton Centroid
-    #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'.',color='#6495ED',markersize=5,zorder=8)
+    ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'.',color='#6495ED',markersize=5,zorder=8)
     #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'o',color='#6495ED',markersize=15,zorder=8,fillstyle='none')
     #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'o',color='#6495ED',markersize=12,zorder=8)
     
@@ -177,9 +181,10 @@ def intensity_plotter(ResultsRow,data,save):
     #ax.plot(ResultsRow['Cytoskeleton Centroid'][1],ResultsRow['Cytoskeleton Centroid'][0],'o',color='r',markersize=12,zorder=8)
     
     # Plot Nucleus Contour
-    #ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5)
-    x_,y_   = np.where((ResultsRow['Mask']*1) != 0)
-    plot_nuclei_contours2(ResultsRow,data,ResultsRow['Img Index'],[x_,y_],ax) 
+    ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5)
+    #x_,y_   = np.where((ResultsRow['Mask']*1) != 0)
+    #plot_nuclei_contours2(ResultsRow,data,ResultsRow['Img Index'],[x_,y_],ax) 
+    
     
     # Set x and y lims and title
     #ax.set_ylim([min(ResultsRow['Offset'][0]),max(ResultsRow['Offset'][0])])
@@ -201,7 +206,7 @@ def intensity_plotter(ResultsRow,data,save):
     # Initialize figure 2
     fig,ax = plt.subplots(figsize=(8,8))
     intensity = data['CYTO']['Image'][ResultsRow['Img Index']] / np.max(data['CYTO']['Image'][ResultsRow['Img Index']])
-    aux = intensity * ResultsRow['Mask']
+    aux = intensity * mask
     aux = aux / np.max(aux)
     #ax.imshow(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]*aux,cmap=cm)
     ax.imshow(aux,cmap=cm)
@@ -209,7 +214,7 @@ def intensity_plotter(ResultsRow,data,save):
     ax.axis('off')
     
     # Plot Nucleus Centroid and Cytoskeleton Centroid
-    #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'.',color='#6495ED',markersize=5,zorder=8)
+    ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'.',color='#6495ED',markersize=5,zorder=8)
     #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'o',color='#6495ED',markersize=15,zorder=8,fillstyle='none')
     #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'o',color='#6495ED',markersize=12,zorder=8,alpha=0.5)
     
@@ -218,7 +223,7 @@ def intensity_plotter(ResultsRow,data,save):
     #ax.plot(ResultsRow['Cytoskeleton Centroid'][1],ResultsRow['Cytoskeleton Centroid'][0],'o',color='r',markersize=12,zorder=8,alpha=0.5)
     
     # Plot Nucleus Contour
-    #ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5,alpha=0.5)
+    ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5,alpha=0.5)
          
     # Set x and y lims and title
     ax.set_ylim([min(x_),max(x_)])
@@ -249,7 +254,7 @@ def line_plotter(ResultsRow,data,feat,cmap,normalize_bounds,colorbar_label,line_
     
     # Plot background
     if overlay == None:
-        ax.imshow(np.zeros((1040, 1388)),cmap='gray',alpha=0)
+        ax.imshow(np.zeros(ResultsRow['Image Size']),cmap='gray',alpha=0)
     if overlay == 'deconv':
         #ax.imshow(1-ResultsRow['Mask']*TextureDF['Skeleton'][ResultsRow['Img Index']],cmap='gray')
         ax.imshow(np.max(ResultsRow['Patch:Deconvoluted Cyto'][1]) - ResultsRow['Patch:Deconvoluted Cyto'][1],cmap='gray',zorder=2)
@@ -262,7 +267,7 @@ def line_plotter(ResultsRow,data,feat,cmap,normalize_bounds,colorbar_label,line_
         normalize_bounds = [0,np.max(ResultsRow[feat])]
 
     # Plot Nucleus Centroid and Cytoskeleton Centroid
-    #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'.',color='#6495ED',markersize=5,zorder=8)
+    ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'.',color='#6495ED',markersize=5,zorder=8)
     #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'o',color='#6495ED',markersize=15,zorder=8,fillstyle='none')
     #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'o',color='#6495ED',markersize=12,zorder=8)
     
@@ -271,9 +276,10 @@ def line_plotter(ResultsRow,data,feat,cmap,normalize_bounds,colorbar_label,line_
     #ax.plot(ResultsRow['Cytoskeleton Centroid'][1],ResultsRow['Cytoskeleton Centroid'][0],'o',color='r',markersize=12,zorder=8)
     
     # Plot Nucleus Contour
-    #ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5)
-    x_,y_   = np.where((ResultsRow['Mask']*1) != 0)
-    plot_nuclei_contours2(ResultsRow,data,ResultsRow['Img Index'],[x_,y_],ax) 
+    ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5)
+    #x_,y_   = np.where((ResultsRow['Mask']*1) != 0)
+    x_,y_ = ResultsRow['Mask']
+    #plot_nuclei_contours2(ResultsRow,data,ResultsRow['Img Index'],[x_,y_],ax) 
         
         
     # Plot segments colored by feature value
@@ -314,8 +320,10 @@ def line_plotter(ResultsRow,data,feat,cmap,normalize_bounds,colorbar_label,line_
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     
     if save != False:
-        plt.savefig(folder + str("\\") + str(save) + ".pdf",format='pdf',transparent=True,bbox_inches='tight')
+        #plt.savefig(folder + str("\\") + str(save) + ".pdf",format='pdf',transparent=True,bbox_inches='tight')
         #plt.savefig(folder + str("\\") + str(save) + ".png",format='png',transparent=True,bbox_inches='tight',dpi=800)
+        plt.savefig(str(save) + ".pdf",format='pdf',transparent=True,bbox_inches='tight')
+        #plt.savefig(str(save) + ".png",format='png',transparent=True,bbox_inches='tight',dpi=800)
     fig.show()
     
     return print('Done.')
@@ -331,22 +339,26 @@ def graph_plotter(ResultsRow,data,cmap,feat,normalize_bounds,colorbar_label,node
     # Get skeleton
     global ske
     img       = data['CYTO']['Image'][ResultsRow['Img Index']] / np.max(data['CYTO']['Image'][ResultsRow['Img Index']])
-    intensity = ResultsRow['Mask'] * img
-    ske       = Skeleton(skeleton_image=(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]*(intensity/np.max(intensity))).astype(float),spacing=0.1612500) 
-    
+    intensity = retrieve_mask(ResultsRow['Mask'],ResultsRow['Image Size']) * img
+    #ske       = Skeleton(skeleton_image=(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]*(intensity/np.max(intensity))).astype(float),spacing=0.1612500) 
+    ske       = Skeleton(skeleton_image = (retrieve_mask(ResultsRow['Skeleton'],ResultsRow['Image Size'])*img).astype(float),
+                         spacing = ResultsRow['Resolution'][2])
+                         
+    mask = retrieve_mask(ResultsRow['Mask'],ResultsRow['Image Size'])
     # Initialize figure
     fig,ax = plt.subplots()
     if overlay == None:
-        ax.imshow(np.zeros_like(ResultsRow['Mask']*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]),cmap='gray',alpha=0)
+        #ax.imshow(np.zeros_like(mask*data['CYTO_PRE']['Skeleton'][ResultsRow['Img Index']]),cmap='gray',alpha=0)
+        ax.imshow(np.zeros(ResultsRow['Image Size']),cmap='gray',alpha=0)
     if overlay == 'deconv':
-        ax.imshow(np.max(ResultsRow['Mask']*data['CYTO']['Image'][ResultsRow['Img Index']]) - ResultsRow['Mask']*data['CYTO']['Image'][ResultsRow['Img Index']],cmap='gray',alpha=1)
+        ax.imshow(np.max(mask*data['CYTO']['Image'][ResultsRow['Img Index']]) - mask*data['CYTO']['Image'][ResultsRow['Img Index']],cmap='gray',alpha=1)
     ax.axis('off')
     ax.axis('equal')
     
-    #ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'o',color='#6495ED',markersize=12,zorder=8)
-    #ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5)
-    x_,y_   = np.where((ResultsRow['Mask']*1) != 0)
-    plot_nuclei_contours2(ResultsRow,data,ResultsRow['Img Index'],[x_,y_],ax)
+    ax.plot(ResultsRow['Nucleus Centroid'][1],ResultsRow['Nucleus Centroid'][0],'o',color='#6495ED',markersize=12,zorder=8)
+    ax.plot(ResultsRow['Nucleus Contour'][:,0],ResultsRow['Nucleus Contour'][:,1],'--',color='#6495ED',zorder=11,linewidth=2.5)
+    x_,y_   = ResultsRow['Mask']
+    #plot_nuclei_contours2(ResultsRow,data,ResultsRow['Img Index'],[x_,y_],ax)
     
     # Get feat
     if feat == 'branch-distance':
@@ -363,8 +375,8 @@ def graph_plotter(ResultsRow,data,cmap,feat,normalize_bounds,colorbar_label,node
         feat_list = summarize(ske,find_main_branch=False)
     if feat == None:
         feat_list = np.ones((1,ske.n_paths))
-#     if feat == 'CNF2D:Branch Orientation' or 'CNF2D:Branch Orientation PCA' or 'CNF2D:Local Average Branch Distance' or 'CNF2D:Mean Filament Thickness' or 'CNF2D:Local Average Bundling Score' or 'CNF2D:Local Average Branch Orientation' or 'CNF2D:Distances to Centroid':
-#         feat_list = ResultsRow[feat]
+    if feat == 'CNF2D:Branch Orientation' or 'CNF2D:Branch Orientation PCA' or 'CNF2D:Local Average Branch Distance' or 'CNF2D:Mean Filament Thickness' or 'CNF2D:Local Average Bundling Score' or 'CNF2D:Local Average Branch Orientation' or 'CNF2D:Distances to Centroid':
+        feat_list = ResultsRow[feat]
     
     
     # Get bounds for color map
