@@ -1,6 +1,6 @@
 # Unraveling the cytoskeletal architecture of cancer cells: a novel computational approach to predict cell fate - CODE
 
-This code is divided in 8 chapters:
+This code is divided in 7 chapters:
 
   1. **Dataset**: Inspect the dataset with RGB and 2D deconvoluted cytoskeleton/nuclei images.
   2. **Nuclei Preprocessing**: Adjust the parameters for a given image to segment and preprocess nuclei and visualize the results.
