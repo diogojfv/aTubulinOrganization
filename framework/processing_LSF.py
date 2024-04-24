@@ -214,7 +214,7 @@ def lines_RS_cent_dist(ResultsRow,CentroidsDF):
 #         print('centroid not found. set to (0,0)')
     
     rspos = np.array([ResultsRow['LSF:Radial Pos 2'][1],ResultsRow['LSF:Radial Pos 2'][0]])
-    return np.linalg.norm(np.array(centroid) - rspos)*0.16125
+    return np.linalg.norm(np.array(centroid) - rspos)*ResultsRow['Resolution'][1]
 
 #ResultsDF["LSF1D:RS NucCent Distance (LinReg) (scaled)"] = [lines_RS_cent_dist(row) for index,row in ResultsDF.iterrows()]
 

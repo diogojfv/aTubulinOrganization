@@ -105,7 +105,7 @@ def getske(ResultsRow,data):
     img = retrieve_mask(ResultsRow['Skeleton'],ResultsRow['Image Size'])
     #img       = ResultsRow['Patch:Skeleton Max'] 
     ske       = Skeleton(skeleton_image = img.astype(float),
-                         spacing        = 0.1612500) # ResultsRow['Resolution'][2] ou [1] ou os dois
+                         spacing        = ResultsRow['Resolution'][1]) # ResultsRow['Resolution'][2] ou [1] ou os dois
     
     
 #     img       = data['CYTO']['Image'][ResultsRow['Img Index']] / np.max(data['CYTO']['Image'][ResultsRow['Img Index']])
@@ -142,7 +142,7 @@ def graph_thickness(ResultsRow,data):
     edtsk = edt*sk
     
     # Get skeleton with intensities related to thickness
-    ske = Skeleton(skeleton_image=edtsk.astype(float),spacing=0.1612500) 
+    ske = Skeleton(skeleton_image=edtsk.astype(float),spacing=ResultsRow['Resolution'][1]) 
     
     # Mean filament thickness
     return ske.path_means()
