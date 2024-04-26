@@ -199,12 +199,13 @@ def intensity_plotter(ResultsRow,data,save):
     # Adjust and Show
     if save:
         plt.savefig(folder + str("\\") + str(save) + ".pdf",format='pdf',transparent=True,bbox_inches='tight')
-    fig.show()
+    #fig.show()
+    fig.tight_layout(pad=0)
     
     
     ##### FIGURE 2
     # Initialize figure 2
-    fig,ax = plt.subplots(figsize=(8,8))
+    fig2,ax = plt.subplots(figsize=(8,8))
     intensity = data['CYTO']['Image'][ResultsRow['Img Index']] / np.max(data['CYTO']['Image'][ResultsRow['Img Index']])
     aux = intensity * mask
     aux = aux / np.max(aux)
@@ -242,9 +243,10 @@ def intensity_plotter(ResultsRow,data,save):
     # Adjust and Show
     if save:
         plt.savefig(folder + str("\\") + str(save) + "_deconv.pdf",format='pdf',transparent=True,bbox_inches='tight')
-    fig.show()
+    #fig2.show()
+    fig2.tight_layout(pad=0)
     
-    return print('Done.')  
+    return fig,fig2
 
 
 def line_plotter(ResultsRow,data,feat,cmap,normalize_bounds,colorbar_label,line_data_origin,overlay,save):
@@ -312,21 +314,45 @@ def line_plotter(ResultsRow,data,feat,cmap,normalize_bounds,colorbar_label,line_
 #     ax.set_ylim([min(ResultsRow['Offset'][0]),max(ResultsRow['Offset'][0])])
 #     ax.set_xlim([min(ResultsRow['Offset'][1]),max(ResultsRow['Offset'][1])])
     
-    ax.set_ylim([min(x_),max(x_)])
-    ax.set_xlim([min(y_),max(y_)])
+    
+    
+    
+    # Calculate bounds
+    x_min, x_max = np.min(x_), np.max(x_)
+    y_min, y_max = np.min(y_), np.max(y_)
+
+    # Determine the center of the bounding rectangle
+    x_center = (x_min + x_max) / 2
+    y_center = (y_min + y_max) / 2
+
+    # Calculate the required half-length to ensure the area is square
+    half_length = max((x_max - x_min), (y_max - y_min)) / 2
+
+    # Define square bounds
+    min_window_x = x_center - half_length
+    max_window_x = x_center + half_length
+    min_window_y = y_center - half_length
+    max_window_y = y_center + half_length
+    
+    ax.set_xlim([min_window_y, max_window_y])
+    ax.set_ylim([min_window_x, max_window_x])
+    print([max_window_y-min_window_y,max_window_x-min_window_x])
+#     ax.set_ylim([min(x_),max(x_)])
+#     ax.set_xlim([min(y_),max(y_)])
     #ax.set_title(feat,fontsize=12)
     
     # Adjust and Show
-    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    fig.tight_layout(pad=0)
     
     if save != False:
         #plt.savefig(folder + str("\\") + str(save) + ".pdf",format='pdf',transparent=True,bbox_inches='tight')
         #plt.savefig(folder + str("\\") + str(save) + ".png",format='png',transparent=True,bbox_inches='tight',dpi=800)
         plt.savefig(str(save) + ".pdf",format='pdf',transparent=True,bbox_inches='tight')
         #plt.savefig(str(save) + ".png",format='png',transparent=True,bbox_inches='tight',dpi=800)
-    fig.show()
+    #fig.show()
     
-    return print('Done.')
+    
+    return fig
 
 
 
@@ -375,7 +401,9 @@ def graph_plotter(ResultsRow,data,cmap,feat,normalize_bounds,colorbar_label,node
         feat_list = summarize(ske,find_main_branch=False)
     if feat == None:
         feat_list = np.ones((1,ske.n_paths))
-    if feat == 'CNF2D:Branch Orientation' or 'CNF2D:Branch Orientation PCA' or 'CNF2D:Local Average Branch Distance' or 'CNF2D:Mean Filament Thickness' or 'CNF2D:Local Average Bundling Score' or 'CNF2D:Local Average Branch Orientation' or 'CNF2D:Distances to Centroid':
+#     if feat == 'CNF2D:Branch Orientation' or 'CNF2D:Branch Orientation PCA' or 'CNF2D:Local Average Branch Distance' or 'CNF2D:Mean Filament Thickness' or 'CNF2D:Local Average Bundling Score' or 'CNF2D:Local Average Branch Orientation' or 'CNF2D:Distances to Centroid':
+#         feat_list = ResultsRow[feat]
+    else:
         feat_list = ResultsRow[feat]
     
     
@@ -469,9 +497,10 @@ def graph_plotter(ResultsRow,data,cmap,feat,normalize_bounds,colorbar_label,node
     # save and show
     if save != False:
         plt.savefig(folder + str("\\") + str(save) + ".pdf",format='pdf',transparent=True,bbox_inches='tight')
-    fig.show()
+    #fig.show()
+    fig.tight_layout(pad=0)
     
-    return print('Done.')
+    return fig
 
 
 
@@ -587,7 +616,7 @@ def plot_barplot_paper(data,feature=None):
         print(result)
 
         # Figure
-        fig,ax = plt.subplots(figsize=(4,3))
+        fig,ax = plt.subplots(figsize=(4,4))
         ax.spines['bottom'].set_zorder(20)
         ax.spines['left'].set_zorder(20)
 
@@ -640,7 +669,11 @@ def plot_barplot_paper(data,feature=None):
         except:
             pass
         
-        plt.show()
+        #plt.show()
+        fig.tight_layout(pad=0)
+        
+        
+        return fig
         
 
 def plot_barplot_soraia(ResultsDF):

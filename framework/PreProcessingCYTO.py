@@ -281,8 +281,12 @@ def cytoskeleton_preprocessing(rowCYTO, algorithm, parameters,plot,save):
                       inv     = True,
                       title   = titulo,
                       save    = save)
-            
-
+        
+#         fig_gau,ax_gau = plt.subplots()
+#         ax_gau.imshow(imagens[1],cmap='gray')
+#         ax_gau.axis('off')
+        
+        
 
 
 #         if "RGB" in data.keys():
@@ -301,7 +305,7 @@ def cytoskeleton_preprocessing(rowCYTO, algorithm, parameters,plot,save):
     
     new       = pd.DataFrame(data={'Path': [rowCYTO['Path']], 'Name': [rowCYTO['Name']], 'Img Index': [rowCYTO.name], 'Label': [rowCYTO['Label']], 'Image Size': [rowCYTO['Image Size']],'Texture': [texture], 'Skeleton': [skeleton*1]}, index = [rowCYTO.name])
     CYTO_PRE = pd.concat([CYTO_PRE, new],ignore_index=False)
-    return CYTO_PRE
+    return CYTO_PRE,ini,gau,sato,texture,skeleton
 
 
 def imageshow(image,figsize=(10,10),title=None,axis='off',inv=False,cmap='gray',save=False):
