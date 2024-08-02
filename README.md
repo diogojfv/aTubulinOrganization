@@ -1,4 +1,4 @@
-# Unraveling the cytoskeletal architecture of cancer cells: a novel computational approach to predict cell fate - CODE
+# Unravelling the cytoskeletal architecture of cancer cells: a novel computational approach to predict cell invasive potential - CODE
 
 This code is divided in 7 chapters:
 
@@ -12,7 +12,7 @@ This code is divided in 7 chapters:
 
 # Additional notes:
 
-   - Use the ```environment.yaml``` file to setup a dedicated environment with the required packages to run the code.
+   - Use the ```environment.yaml``` file to setup a dedicated environment with the required packages to run the code (TO DO).
  
  
  
